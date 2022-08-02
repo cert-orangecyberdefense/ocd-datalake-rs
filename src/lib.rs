@@ -1,7 +1,13 @@
 use std::collections::HashMap;
+use config::FileFormat;
 use reqwest::blocking::Client;
 use serde_json::{Value};
 use serde::Deserialize;
+
+
+const CONFIG_ENV_PREFIX: &str = "OCD_DTL_RS";
+const CONFIG_DEFAULT_FILE: &str = "conf.ron";
+
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct DatalakeSetting {
@@ -17,6 +23,29 @@ impl DatalakeSetting {
         self.threat_library_url = self.threat_library_url.replace("{base_url}", &self.base_url);
         self.patch_threat_library_url = self.patch_threat_library_url.replace("{base_url}", &self.base_url);
     }
+    pub fn new(config_file: &str) -> DatalakeSetting {
+        let builder = config::Config::builder()
+            .add_source(config::File::new(config_file, FileFormat::Ron))
+            .add_source(config::Environment::with_prefix(CONFIG_ENV_PREFIX));
+        let some_config = match builder.build() {
+            Ok(valid_config) => valid_config,
+            Err(e) => panic!("Config is not correctly structured: {:?}", e),
+        };
+
+        let mut settings = match some_config.try_deserialize::<DatalakeSetting>() {
+            Ok(valid_settings) => { valid_settings }
+            Err(e) => { panic!("Config is not as expected: {:?}", e) }
+        };
+        settings.replace_base_url();
+        settings
+    }
+}
+
+
+impl Default for DatalakeSetting {
+    fn default() -> Self {
+        Self::new(CONFIG_DEFAULT_FILE)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -25,7 +54,7 @@ pub struct Datalake {
     username: String,
     password: String,
     client: Client,
-    token: Option<String>
+    token: Option<String>,
 }
 
 impl Datalake {
@@ -62,5 +91,21 @@ impl Datalake {
         }
         let token = self.token.as_ref().unwrap().clone();
         token
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Datalake, DatalakeSetting};
+
+    #[test]
+    fn test_create_datalake_with_default_config() {  // TODO test for a preprod conf
+        let dtl = Datalake::new(
+            "username".to_string(),
+            "password".to_string(),
+            DatalakeSetting::default(),
+        );
+
+        assert_eq!(dtl.settings.base_url, "https://datalake.cert.orangecyberdefense.com")
     }
 }
