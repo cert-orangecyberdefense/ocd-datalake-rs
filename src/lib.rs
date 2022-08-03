@@ -61,7 +61,7 @@ pub struct Datalake {
     username: String,
     password: String,
     client: Client,
-    token: Option<String>,
+    access_token: Option<String>,
 }
 
 impl Datalake {
@@ -71,10 +71,10 @@ impl Datalake {
             username,
             password,
             client: Client::new(),
-            token: None,
+            access_token: None,
         }
     }
-
+    // TODO handle expired access / refresh token
     fn retrieve_api_token(&self) -> String {
         let mut token = "Token ".to_string();
 
@@ -84,7 +84,7 @@ impl Datalake {
         json_body.insert("password", &self.password);
         let json_resp = match auth_request.json(&json_body).send() {
             Ok(resp) => { resp.json::<Value>().unwrap() }
-            Err(err) => { panic!("Could not fetch API {:?}: {:?}", &self.settings.routes.threat_library, err); }
+            Err(err) => { panic!("Could not fetch API {:?}: {:?}", &self.settings.routes.authentication, err); }
         };
         let raw_token = json_resp["access_token"].as_str().unwrap();
         token.push_str(raw_token);
@@ -93,10 +93,10 @@ impl Datalake {
 
     /// Cached version of retrieve_api_token that return a new token only if needed
     pub fn get_token(&mut self) -> String {
-        if self.token.is_none() {
-            self.token = Some(self.retrieve_api_token());
+        if self.access_token.is_none() {
+            self.access_token = Some(self.retrieve_api_token());
         }
-        let token = self.token.as_ref().unwrap().clone();
+        let token = self.access_token.as_ref().unwrap().clone();
         token
     }
 }
@@ -113,8 +113,8 @@ mod tests {
             DatalakeSetting::prod(),
         );
 
-        assert_eq!(dtl.settings.base_url, "https://datalake.cert.orangecyberdefense.com");
-        assert_eq!(dtl.settings.routes.authentication, "https://datalake.cert.orangecyberdefense.com/auth/token/");
+        assert_eq!(dtl.settings.base_url, "https://datalake.cert.orangecyberdefense.com/api/v2");
+        assert_eq!(dtl.settings.routes.authentication, "https://datalake.cert.orangecyberdefense.com/api/v2/auth/token/");
     }
 
     #[test]
@@ -127,8 +127,8 @@ mod tests {
             preprod_setting,
         );
 
-        assert_eq!(dtl.settings.base_url, "https://ti.extranet.mrti-center.com");
-        assert_eq!(dtl.settings.routes.authentication, "https://ti.extranet.mrti-center.com/auth/token/");
+        assert_eq!(dtl.settings.base_url, "https://ti.extranet.mrti-center.com/api/v2");
+        assert_eq!(dtl.settings.routes.authentication, "https://ti.extranet.mrti-center.com/api/v2/auth/token/");
     }
 
     #[test]

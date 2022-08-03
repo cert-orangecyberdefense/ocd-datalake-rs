@@ -1,6 +1,6 @@
 (
     datalake_setting: DatalakeSetting(
-        base_url: "https://ti.extranet.mrti-center.com",
+        base_url: "https://ti.extranet.mrti-center.com/api/v2",
         routes: RoutesSetting(
             authentication: "{base_url}/auth/token/",
             threat_library: "{base_url}/mrti/tag-subcategory/filtered/",

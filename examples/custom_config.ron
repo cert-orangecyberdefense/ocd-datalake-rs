@@ -1,6 +1,6 @@
 (
     datalake_setting: DatalakeSetting(
-        base_url: "https://datalake.cert.orangecyberdefense.com/api/v2",
+        base_url: "https://custom_host",
         routes: RoutesSetting(
             authentication: "{base_url}/auth/token/",
             threat_library: "{base_url}/mrti/tag-subcategory/filtered/",
