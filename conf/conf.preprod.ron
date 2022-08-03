@@ -1,0 +1,10 @@
+(
+    datalake_setting: DatalakeSetting(
+        base_url: "https://ti.extranet.mrti-center.com",
+        routes: RoutesSetting(
+            authentication: "{base_url}/auth/token/",
+            threat_library: "{base_url}/mrti/tag-subcategory/filtered/",
+            patch_threat_library: "{base_url}/mrti/tag-subcategory/{sub_category_id}/",
+        )
+    )
+)

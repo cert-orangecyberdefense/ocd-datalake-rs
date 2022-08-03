@@ -1,6 +1,0 @@
-DatalakeSetting(
-    base_url: "https://datalake.cert.orangecyberdefense.com",
-    authentication_url: "{base_url}/auth/token/",
-    threat_library_url: "{base_url}/mrti/tag-subcategory/filtered/",
-    patch_threat_library_url: "{base_url}/mrti/tag-subcategory/{sub_category_id}/",
-)
