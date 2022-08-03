@@ -6,7 +6,9 @@ use serde::Deserialize;
 
 
 const CONFIG_ENV_PREFIX: &str = "OCD_DTL_RS";
+#[allow(dead_code)]
 const CONFIG_PROD_FILE: &str = "conf/conf.prod.ron";
+#[allow(dead_code)]
 const CONFIG_PREPROD_FILE: &str = "conf/conf.preprod.ron";
 
 #[derive(Deserialize, Clone, Debug)]
@@ -43,12 +45,15 @@ impl DatalakeSetting {
         settings.replace_base_url();
         settings
     }
-}
 
-
-impl Default for DatalakeSetting {
-    fn default() -> Self {
+    #[allow(dead_code)]
+    fn prod() -> Self {
         Self::new(CONFIG_PROD_FILE)
+    }
+
+    #[allow(dead_code)]
+    fn preprod() -> Self {
+        Self::new(CONFIG_PREPROD_FILE)
     }
 }
 
@@ -100,14 +105,14 @@ impl Datalake {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CONFIG_PREPROD_FILE, Datalake, DatalakeSetting};
+    use crate::{Datalake, DatalakeSetting};
 
     #[test]
-    fn test_create_datalake_with_default_config() {
+    fn test_create_datalake_with_prod_config() {
         let dtl = Datalake::new(
             "username".to_string(),
             "password".to_string(),
-            DatalakeSetting::default(),
+            DatalakeSetting::prod(),
         );
 
         assert_eq!(dtl.settings.base_url, "https://datalake.cert.orangecyberdefense.com");
@@ -116,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_create_datalake_preprod_config() {
-        let preprod_setting = DatalakeSetting::new(CONFIG_PREPROD_FILE);
+        let preprod_setting = DatalakeSetting::preprod();
 
         let dtl = Datalake::new(
             "username".to_string(),
@@ -133,6 +138,4 @@ mod tests {
     fn test_config_file_not_present() {
         DatalakeSetting::new("/not/existing/path.ron");
     }
-
-    // TODO preprod and prod config have the same routes
 }
