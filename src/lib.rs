@@ -6,10 +6,6 @@ use serde::Deserialize;
 
 
 const CONFIG_ENV_PREFIX: &str = "OCD_DTL_RS";
-#[allow(dead_code)]
-const CONFIG_PROD_FILE: &str = "conf/conf.prod.ron";
-#[allow(dead_code)]
-const CONFIG_PREPROD_FILE: &str = "conf/conf.preprod.ron";
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct RoutesSetting {
@@ -30,9 +26,9 @@ impl DatalakeSetting {
         self.routes.threat_library = self.routes.threat_library.replace("{base_url}", &self.base_url);
         self.routes.patch_threat_library = self.routes.patch_threat_library.replace("{base_url}", &self.base_url);
     }
-    pub fn new(config_file: &str) -> DatalakeSetting {
+    pub fn new(config: &str) -> DatalakeSetting {
         let builder = config::Config::builder()
-            .add_source(config::File::new(config_file, FileFormat::Ron))
+            .add_source(config::File::from_str(config, FileFormat::Ron))
             .add_source(config::Environment::with_prefix(CONFIG_ENV_PREFIX));
         let some_config = match builder.build() {
             Ok(valid_config) => valid_config,
@@ -47,13 +43,15 @@ impl DatalakeSetting {
     }
 
     #[allow(dead_code)]
-    fn prod() -> Self {
-        Self::new(CONFIG_PROD_FILE)
+    pub fn prod() -> Self {
+        let prod_config_str = include_str!("../conf/conf.prod.ron");
+        Self::new(prod_config_str)
     }
 
     #[allow(dead_code)]
-    fn preprod() -> Self {
-        Self::new(CONFIG_PREPROD_FILE)
+    pub fn preprod() -> Self {
+        let preprod_config_str = include_str!("../conf/conf.preprod.ron");
+        Self::new(preprod_config_str)
     }
 }
 
@@ -134,8 +132,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Config parse error: configuration file \"/not/existing/path.ron\"")]
-    fn test_config_file_not_present() {
-        DatalakeSetting::new("/not/existing/path.ron");
+    #[should_panic(expected = "Config parse error: 1:5: Non-whitespace trailing characters")]
+    fn test_invalid_config() {
+        DatalakeSetting::new("not a correct config");
     }
 }

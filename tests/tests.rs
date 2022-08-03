@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
     use mockito::mock;
     use ocd_datalake_rs::{Datalake, DatalakeSetting, RoutesSetting};
 
@@ -33,5 +34,17 @@ mod tests {
 
         assert_eq!(token, "Token 123".to_string());
         token_mock.assert();
+    }
+
+    /// Check config is not dependant to the workdir
+    #[test]
+    fn test_default_datalake_on_another_workdir() {
+        let tmp = Path::new("/tmp");
+        assert!(std::env::set_current_dir(&tmp).is_ok());
+        Datalake::new(
+            "username".to_string(),
+            "password".to_string(),
+            DatalakeSetting::prod(),
+        );
     }
 }
