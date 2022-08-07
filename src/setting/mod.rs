@@ -1,4 +1,5 @@
 const CONFIG_ENV_PREFIX: &str = "OCD_DTL_RS";
+const PREPROD_BASE_URL: &str = "https://ti.extranet.mrti-center.com/api/v2";
 
 use config::FileFormat;
 use serde::Deserialize;
@@ -14,12 +15,13 @@ pub struct RoutesSetting {
 #[derive(Deserialize, Clone, Debug)]
 pub struct DatalakeSetting {
     base_url: String,
-    routes: RoutesSetting,  // raw routes with {base_url} in them
+    routes: RoutesSetting,
+    // raw routes with {base_url} in them
     formatted_routes: Option<RoutesSetting>,  // final routes, only set after replace_base_url is called
 }
 
 impl DatalakeSetting {
-    pub fn base_url(&self) -> &String{
+    pub fn base_url(&self) -> &String {
         &self.base_url
     }
 
@@ -64,8 +66,9 @@ impl DatalakeSetting {
 
     #[allow(dead_code)]
     pub fn preprod() -> Self {
-        let preprod_config_str = include_str!("../../conf/conf.preprod.ron");  // TODO ditch preprod file config and just replace prod base url
-        Self::new(preprod_config_str)
+        let mut setting = Self::prod();
+        setting.set_base_url(PREPROD_BASE_URL.to_string());
+        setting
     }
 }
 
@@ -76,9 +79,9 @@ mod tests {
 
     #[test]
     fn test_create_datalake_with_prod_config() {
-        let preprod_setting = DatalakeSetting::prod();
+        let prod_setting = DatalakeSetting::prod();
 
-        assert_eq!(preprod_setting.base_url, "https://datalake.cert.orangecyberdefense.com/api/v2");
+        assert_eq!(prod_setting.base_url, "https://datalake.cert.orangecyberdefense.com/api/v2");
     }
 
     #[test]
