@@ -1,59 +1,10 @@
-use std::collections::HashMap;
-use config::FileFormat;
+mod setting;
+
+use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
 use reqwest::blocking::Client;
-use serde_json::{Value};
-use serde::Deserialize;
-
-
-const CONFIG_ENV_PREFIX: &str = "OCD_DTL_RS";
-
-#[derive(Deserialize, Clone, Debug)]
-pub struct RoutesSetting {
-    pub authentication: String,
-    pub threat_library: String,
-    pub patch_threat_library: String,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-pub struct DatalakeSetting {
-    pub base_url: String,
-    pub routes: RoutesSetting,
-}
-
-impl DatalakeSetting {
-    pub fn replace_base_url(&mut self) {
-        self.routes.authentication = self.routes.authentication.replace("{base_url}", &self.base_url);
-        self.routes.threat_library = self.routes.threat_library.replace("{base_url}", &self.base_url);
-        self.routes.patch_threat_library = self.routes.patch_threat_library.replace("{base_url}", &self.base_url);
-    }
-    pub fn new(config: &str) -> DatalakeSetting {
-        let builder = config::Config::builder()
-            .add_source(config::File::from_str(config, FileFormat::Ron))
-            .add_source(config::Environment::with_prefix(CONFIG_ENV_PREFIX));
-        let some_config = match builder.build() {
-            Ok(valid_config) => valid_config,
-            Err(e) => panic!("Config parse error: {:?}", e),
-        };
-        let mut settings = match some_config.get::<DatalakeSetting>("datalake_setting") {
-            Ok(valid_settings) => { valid_settings }
-            Err(e) => { panic!("Config is not as expected: {:?}", e) }
-        };
-        settings.replace_base_url();
-        settings
-    }
-
-    #[allow(dead_code)]
-    pub fn prod() -> Self {
-        let prod_config_str = include_str!("../conf/conf.prod.ron");
-        Self::new(prod_config_str)
-    }
-
-    #[allow(dead_code)]
-    pub fn preprod() -> Self {
-        let preprod_config_str = include_str!("../conf/conf.preprod.ron");
-        Self::new(preprod_config_str)
-    }
-}
+use serde_json::{json, Value};
+pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 #[derive(Clone, Debug)]
 pub struct Datalake {
@@ -78,13 +29,13 @@ impl Datalake {
     fn retrieve_api_token(&self) -> String {
         let mut token = "Token ".to_string();
 
-        let auth_request = self.client.post(&self.settings.routes.authentication);
+        let auth_request = self.client.post(&self.settings.routes().authentication);
         let mut json_body = HashMap::new();
         json_body.insert("email", &self.username);
         json_body.insert("password", &self.password);
         let json_resp = match auth_request.json(&json_body).send() {
             Ok(resp) => { resp.json::<Value>().unwrap() }
-            Err(err) => { panic!("Could not fetch API {:?}: {:?}", &self.settings.routes.authentication, err); }
+            Err(err) => { panic!("Could not fetch API {:?}: {:?}", &self.settings.routes().authentication, err); }
         };
         let raw_token = json_resp["access_token"].as_str().unwrap();
         token.push_str(raw_token);
@@ -113,8 +64,7 @@ mod tests {
             DatalakeSetting::prod(),
         );
 
-        assert_eq!(dtl.settings.base_url, "https://datalake.cert.orangecyberdefense.com/api/v2");
-        assert_eq!(dtl.settings.routes.authentication, "https://datalake.cert.orangecyberdefense.com/api/v2/auth/token/");
+        assert_eq!(dtl.settings.routes().authentication, "https://datalake.cert.orangecyberdefense.com/api/v2/auth/token/");
     }
 
     #[test]
@@ -127,13 +77,6 @@ mod tests {
             preprod_setting,
         );
 
-        assert_eq!(dtl.settings.base_url, "https://ti.extranet.mrti-center.com/api/v2");
-        assert_eq!(dtl.settings.routes.authentication, "https://ti.extranet.mrti-center.com/api/v2/auth/token/");
-    }
-
-    #[test]
-    #[should_panic(expected = "Config parse error: 1:5: Non-whitespace trailing characters")]
-    fn test_invalid_config() {
-        DatalakeSetting::new("not a correct config");
+        assert_eq!(dtl.settings.routes().authentication, "https://ti.extranet.mrti-center.com/api/v2/auth/token/");
     }
 }

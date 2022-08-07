@@ -13,3 +13,4 @@ config = "0.13.1"
 
 [dev-dependencies]
 mockito = "0.31.0"
+lazy_static = "1.4.0"
