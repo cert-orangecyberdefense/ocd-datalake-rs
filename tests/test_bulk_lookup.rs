@@ -3,7 +3,9 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use mockito::Matcher::Json;
     use mockito::mock;
+    use serde_json::json;
     use crate::common;
 
 
@@ -33,7 +35,7 @@ mod tests {
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
         let lookup_mock = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(r#"{"content":"domain.com 4.4.4.4 1.1.1.1"}"#) // TODO replace with json! call
+            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1"})))
             .match_header("Authorization", "Token 123")
             .with_status(200)
             .with_body(r#"{"found":2,"not_found":["1.1.1.1"],"results":{"domain":["domain.com"],"ip":["4.4.4.4"]}}"#)
