@@ -7,7 +7,14 @@ fn main() {
     let mut dtl = Datalake::new(
         username,
         password,
-        DatalakeSetting::preprod()
+        DatalakeSetting::preprod(),
     );
-    println!("{}", dtl.get_token());
+
+    let atom_values: Vec<String> = vec![
+        "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e",
+        "ef3363dfe2515b826584ab53c4bb7812",
+        "jeithe7eijeefohch3qu.probes.site",
+    ].iter().map(|x| x.to_string()).collect();
+    let csv_result: String = dtl.bulk_lookup(atom_values);
+    println!("{}", csv_result);
 }

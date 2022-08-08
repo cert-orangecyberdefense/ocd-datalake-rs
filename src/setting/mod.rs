@@ -9,7 +9,7 @@ use serde::Deserialize;
 pub struct RoutesSetting {
     pub authentication: String,
     pub atom_values_extract: String,
-    pub patch_threat_library: String,
+    pub bulk_lookup: String,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -34,7 +34,7 @@ impl DatalakeSetting {
         self.formatted_routes = Some(RoutesSetting {
             authentication: self.routes.authentication.replace("{base_url}", &self.base_url),
             atom_values_extract: self.routes.atom_values_extract.replace("{base_url}", &self.base_url),
-            patch_threat_library: self.routes.patch_threat_library.replace("{base_url}", &self.base_url),
+            bulk_lookup: self.routes.bulk_lookup.replace("{base_url}", &self.base_url),
         })
     }
 

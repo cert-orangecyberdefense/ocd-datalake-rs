@@ -83,42 +83,28 @@ impl Datalake {
     ///
     /// Threats have their atom type automatically defined (with hash meaning a File type)
     pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> String {
-        // let mut result = Vec::new();
-        //
-        // let mut offset = 0;
-        // let mut pagination_done = false;
-        // while !pagination_done {  // Stop when all subcategories have been retrieved
-        //     let token = self.get_token();
-        //     let mut request = self.client.post(&self.settings.threat_library_url);
-        //     request = request.header("Authorization", token);
-        //     let json_body = json!({
-        //         "limit": API_MAX_PAGINATION_LIMIT,
-        //         "offset": offset,
-        //     });
-        //     let json_resp = match request.json(&json_body).send() {
-        //         Ok(resp) => { resp.json::<Value>().unwrap() }
-        //         Err(err) => { panic!("Could not fetch API {:?}: {:?}", &self.settings.threat_library_url, err); }
-        //     };
-        //
-        //     let response = json_resp.as_object().expect(&*format!("Unexpected api response {:?}", json_resp));
-        //     let subcategories = response["results"].as_array().unwrap();
-        //     for subcategory in subcategories.iter() {
-        //         offset += 1;
-        //         let tags = subcategory["tags"].as_array().unwrap();
-        //         for tag in tags {
-        //             result.push(Tag::new(
-        //                 tag.as_str().unwrap().to_string(),
-        //                 subcategory["category_name"].as_str().unwrap().to_string(),
-        //                 subcategory["name"].as_str().unwrap().to_string(),
-        //             ));
-        //         }
-        //     }
-        //
-        //     let count = response["count"].as_u64().unwrap();
-        //     pagination_done = offset >= count;
-        // }
-        // result
-        return "".to_string();
+        let url = self.settings.routes().bulk_lookup.clone();
+
+        // Construct the body by identifying the atom types
+        let mut body = HashMap::new();
+        let extracted = self.extract_atom_type(&atom_values);
+        for (atom_value, atom_type) in extracted {
+            let entry: Option<&mut Vec<String>> = body.get_mut(atom_type.as_str());
+            if let Some(atom_value_array) = entry {
+                atom_value_array.push(atom_value);
+            } else {
+                body.insert(atom_type, vec![atom_value]);
+            };
+        }
+
+        let request = self.client.post(&url)
+            .header("Authorization", self.get_token())
+            .header("Accept", "text/csv");
+        let csv_resp = match request.json(&body).send() {
+            Ok(resp) => { resp.text().unwrap() }  // TODO return Result
+            Err(err) => { panic!("Could not fetch API {:?}: {:?}", &url, err); }
+        };
+        csv_resp
     }
 }
 
