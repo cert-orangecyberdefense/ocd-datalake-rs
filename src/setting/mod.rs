@@ -55,7 +55,7 @@ impl DatalakeSetting {
     }
 
     pub fn routes(&self) -> &RoutesSetting {
-        self.formatted_routes.as_ref().unwrap()  // TODO default to format raw routes ?
+        self.formatted_routes.as_ref().expect("Formatted routes could not be found")
     }
 
     #[allow(dead_code)]

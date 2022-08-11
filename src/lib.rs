@@ -2,7 +2,7 @@ mod setting;
 
 use std::collections::{BTreeMap, HashMap};
 use reqwest::blocking::Client;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 #[derive(Clone, Debug)]
@@ -86,17 +86,21 @@ impl Datalake {
         let url = self.settings.routes().bulk_lookup.clone();
 
         // Construct the body by identifying the atom types
-        let mut body = HashMap::new();
+        let mut body = Map::new();
+        body.insert("hashkey_only".to_string(), Value::Bool(false));
         let extracted = self.extract_atom_type(&atom_values);
-        for (atom_value, atom_type) in extracted {
-            let entry: Option<&mut Vec<String>> = body.get_mut(atom_type.as_str());
+        for (atom, atom_type) in extracted {
+            let atom_value = Value::String(atom);
+            let entry: Option<&mut Value> = body.get_mut(atom_type.as_str());
             if let Some(atom_value_array) = entry {
-                atom_value_array.push(atom_value);
+                let x = atom_value_array.as_array_mut().unwrap();
+                x.push(atom_value);
             } else {
-                body.insert(atom_type, vec![atom_value]);
+                body.insert(atom_type, Value::Array(vec![atom_value]));
             };
         }
-
+        eprintln!("body = {:?}", body);
+        eprintln!("body.hashkey_only = {:?}", body.get("hashkey_only"));
         let request = self.client.post(&url)
             .header("Authorization", self.get_token())
             .header("Accept", "text/csv");

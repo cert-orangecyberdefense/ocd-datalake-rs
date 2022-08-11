@@ -78,13 +78,14 @@ mod tests {
 "#;
         let lookup_mock = mock("POST", "/mrti/threats/bulk-lookup/")
             .match_body(Json(json!({
-                  "file": [
-                    "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e",
-                    "ef3363dfe2515b826584ab53c4bb7812"
-                  ],
-                  "fqdn": [
-                    "jeithe7eijeefohch3qu.probes.site"
-                  ]
+                    "hashkey_only": false,
+                    "file": [
+                      "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e",
+                      "ef3363dfe2515b826584ab53c4bb7812"
+                    ],
+                    "fqdn": [
+                      "jeithe7eijeefohch3qu.probes.site"
+                    ]
                 }))
             )
             .with_status(200)
