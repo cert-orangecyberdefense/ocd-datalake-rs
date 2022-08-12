@@ -24,6 +24,10 @@ impl fmt::Display for DatalakeError {
 
 impl From<reqwest::Error> for DatalakeError {
     fn from(error: reqwest::Error) -> Self {
+        if error.is_decode() {
+            return Self::ParseError(format!("{}", error));
+        }
+        // default to http error
         let url = match error.url() {
             None => { "<no url>"}
             Some(url) => { url.as_str() }
@@ -60,7 +64,7 @@ impl Datalake {
         json_body.insert("email", &self.username);
         json_body.insert("password", &self.password);
         let resp = auth_request.json(&json_body).send()?;
-        let json_resp = resp.json::<Value>().unwrap();  // TODO test invalid json
+        let json_resp = resp.json::<Value>()?;
         let raw_token = json_resp["access_token"].as_str().unwrap();  // TODO test error auth
         token.push_str(raw_token);
         Ok(token)

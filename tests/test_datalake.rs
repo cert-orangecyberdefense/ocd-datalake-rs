@@ -30,8 +30,8 @@ mod tests {
     }
 
     #[test]
-    fn test_error_on_retrieve_token() {
-        let example_filename = "examples/custom_config.ron";
+    fn test_http_error_on_retrieve_token() {
+        let example_filename = "examples/custom_config.ron";  // config has invalid host
         let contents = {
             let _mutex = WORKDIR_MUTEX.lock().unwrap();  // the file is a shared resource
             fs::read_to_string(example_filename).unwrap()
@@ -44,6 +44,19 @@ mod tests {
 
         let err = dtl.get_token().err().unwrap();
         assert_eq!(err.to_string(), "HTTP Error Could not fetch API for url https://custom_host/auth/token/");
+    }
+
+    #[test]
+    fn test_parse_error_on_retrieve_token() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"503 serveur unavailable"#)
+            .create();
+        let mut dtl = common::create_datalake();
+
+        let err = dtl.get_token().err().unwrap();
+        assert_eq!(err.to_string(), "Parse Error error decoding response body: trailing characters at line 1 column 5");
+        token_mock.assert();
     }
 
     /// Check config is not dependant to the workdir
