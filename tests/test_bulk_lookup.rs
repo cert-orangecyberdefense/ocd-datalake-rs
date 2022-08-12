@@ -30,13 +30,36 @@ mod tests {
         token_mock.assert();
         extract_mock.assert();
 
-        eprintln!("result = {:?}", result);
         let domain = result.get(atom_values[0]).unwrap();
         assert_eq!(domain, "domain");
         let ip1 = result.get(atom_values[1]).unwrap();
         assert_eq!(ip1, "ip");
         let ip2 = result.get(atom_values[2]);
         assert_eq!(ip2, None);
+    }
+
+    #[test]
+    fn test_extract_atom_type_with_no_result() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
+            .match_body(Json(json!({"content":"123"})))
+            .match_header("Authorization", "Token 123")
+            .with_status(200)
+            .with_body(r#"{"found":0,"not_found":["123"],"results":{}}"#)
+            .create();
+        let mut dtl = common::create_datalake();
+        let atom_values = vec!["123".to_string()];
+
+        let result = dtl.extract_atom_type(&atom_values);
+
+        // Check mock called happened
+        token_mock.assert();
+        extract_mock.assert();
+
+        assert!(result.is_empty());  // No result returned
     }
 
     #[test]

@@ -68,7 +68,7 @@ impl Datalake {
             Err(err) => { panic!("Could not fetch API {:?}: {:?}", &url, err); }
         };
         let results_value = json_resp.get("results").expect("results key not returned by the API");
-        let results = results_value.as_object().expect("result key not as expected");  // TODO test empty map
+        let results = results_value.as_object().expect("result key not as expected");
         let mut extracted_atom_types = BTreeMap::new();
         for (atom_type, atoms) in results {
             for atom in atoms.as_array().unwrap() {
