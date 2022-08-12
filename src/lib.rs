@@ -1,9 +1,36 @@
 mod setting;
 
 use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
+
+#[derive(Debug)]
+pub enum DatalakeError {
+    HttpError(String),
+    ParseError(String),
+}
+
+
+impl fmt::Display for DatalakeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DatalakeError::HttpError(err) => write!(f, "HTTP Error {}", err),
+            DatalakeError::ParseError(err) => write!(f, "Parse Error {}", err),
+        }
+    }
+}
+
+impl From<reqwest::Error> for DatalakeError {
+    fn from(error: reqwest::Error) -> Self {
+        let url = match error.url() {
+            None => { "<no url>"}
+            Some(url) => { url.as_str() }
+        };
+        Self::HttpError(format!("Could not fetch API for url {}", url))
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Datalake {
@@ -25,36 +52,34 @@ impl Datalake {
         }
     }
     // TODO handle expired access / refresh token
-    fn retrieve_api_token(&self) -> String {
+    fn retrieve_api_token(&self) -> Result<String, DatalakeError> {
         let mut token = "Token ".to_string();
 
         let auth_request = self.client.post(&self.settings.routes().authentication);
         let mut json_body = HashMap::new();
         json_body.insert("email", &self.username);
         json_body.insert("password", &self.password);
-        let json_resp = match auth_request.json(&json_body).send() {
-            Ok(resp) => { resp.json::<Value>().unwrap() }
-            Err(err) => { panic!("Could not fetch API {:?}: {:?}", &self.settings.routes().authentication, err); }
-        };
-        let raw_token = json_resp["access_token"].as_str().unwrap();
+        let resp = auth_request.json(&json_body).send()?;
+        let json_resp = resp.json::<Value>().unwrap();  // TODO test invalid json
+        let raw_token = json_resp["access_token"].as_str().unwrap();  // TODO test error auth
         token.push_str(raw_token);
-        token
+        Ok(token)
     }
 
     /// Cached version of retrieve_api_token that return a new token only if needed
-    pub fn get_token(&mut self) -> String {
+    pub fn get_token(&mut self) -> Result<String, DatalakeError> {
         if self.access_token.is_none() {
-            self.access_token = Some(self.retrieve_api_token());
+            self.access_token = Some(self.retrieve_api_token()?);
         }
         let token = self.access_token.as_ref().unwrap().clone();
-        token
+        Ok(token)
     }
 
     /// Return the atom types based on the given atom_values
-    pub fn extract_atom_type(&mut self, atom_values: &[String]) -> BTreeMap<String, String> {
+    pub fn extract_atom_type(&mut self, atom_values: &[String]) -> BTreeMap<String, String> {    // TODO return results
         let url = self.settings.routes().atom_values_extract.clone();
         let mut request = self.client.post(&url);
-        request = request.header("Authorization", self.get_token());
+        request = request.header("Authorization", self.get_token().unwrap());  // TODO
         let mut joined_atom_values = String::from(&atom_values[0]);
         for value in atom_values.iter().skip(1) {
             joined_atom_values.push(' ');
@@ -82,7 +107,7 @@ impl Datalake {
     /// Return a CSV of the bulk lookup for given threats
     ///
     /// Threats have their atom type automatically defined (with hash meaning a File type)
-    pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> String {
+    pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> String {  // TODO return results
         let url = self.settings.routes().bulk_lookup.clone();
 
         // Construct the body by identifying the atom types
@@ -102,10 +127,10 @@ impl Datalake {
         }
 
         let request = self.client.post(&url)
-            .header("Authorization", self.get_token())
+            .header("Authorization", self.get_token().unwrap())  // TODO
             .header("Accept", "text/csv");
         let csv_resp = match request.json(&body).send() {
-            Ok(resp) => { resp.text().unwrap() }  // TODO return Result
+            Ok(resp) => { resp.text().unwrap() }
             Err(err) => { panic!("Could not fetch API {:?}: {:?}", &url, err); }
         };
         csv_resp

@@ -25,8 +25,25 @@ mod tests {
 
         let token = dtl.get_token();
 
-        assert_eq!(token, "Token 123".to_string());
+        assert_eq!(token.unwrap(), "Token 123".to_string());
         token_mock.assert();
+    }
+
+    #[test]
+    fn test_error_on_retrieve_token() {
+        let example_filename = "examples/custom_config.ron";
+        let contents = {
+            let _mutex = WORKDIR_MUTEX.lock().unwrap();  // the file is a shared resource
+            fs::read_to_string(example_filename).unwrap()
+        };
+        let mut dtl = Datalake::new(
+            "username".to_string(),
+            "password".to_string(),
+            DatalakeSetting::new(contents.as_str()),
+        );
+
+        let err = dtl.get_token().err().unwrap();
+        assert_eq!(err.to_string(), "HTTP Error Could not fetch API for url https://custom_host/auth/token/");
     }
 
     /// Check config is not dependant to the workdir
