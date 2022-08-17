@@ -8,7 +8,9 @@ mod tests {
     use std::sync::Mutex;
     use lazy_static::lazy_static;
     use mockito::mock;
+    use reqwest::StatusCode;
     use ocd_datalake_rs::{Datalake, DatalakeSetting};
+    use ocd_datalake_rs::DatalakeError::AuthenticationError;
     use crate::common;
 
     lazy_static! {
@@ -61,17 +63,22 @@ mod tests {
 
     #[test]
     fn test_creds_error_on_retrieve_token() {
+        let api_response = r#"{"message":"Wrong credentials provided"}"#;
+        let api_status_code: u16 = 401;
         let token_mock = mock("POST", "/auth/token/")
-            .with_status(401)
-            .with_body(r#"{"message":"Wrong credentials provided"}"#)
+            .with_status(api_status_code as usize)
+            .with_body(api_response)
             .create();
         let mut dtl = common::create_datalake();
 
         let err = dtl.get_token().err().unwrap();
-        assert_eq!(
-            err.to_string(),
-            r#"Authentication Error Invalid credentials ({"message":"Wrong credentials provided"})"#,
-        );
+        assert_eq!(err.to_string(), "Authentication Error Invalid credentials");
+        if let AuthenticationError(detailed_err) = err {
+            assert_eq!(detailed_err.api_response.unwrap(), api_response);
+            assert_eq!(detailed_err.api_status_code.unwrap(), StatusCode::from_u16(api_status_code).unwrap());
+        } else {
+            panic!("Unexpected error!")
+        }
         token_mock.assert();
     }
 

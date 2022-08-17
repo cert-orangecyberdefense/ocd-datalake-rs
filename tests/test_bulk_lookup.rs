@@ -5,7 +5,9 @@ mod common;
 mod tests {
     use mockito::Matcher::Json;
     use mockito::mock;
+    use reqwest::StatusCode;
     use serde_json::json;
+    use ocd_datalake_rs::DatalakeError::ApiError;
     use crate::common;
 
     #[test]
@@ -81,8 +83,13 @@ mod tests {
         let err = dtl.extract_atom_type(&atom_values).err().unwrap();
         assert_eq!(
             err.to_string(),
-            format!("Parse Error extracted API response not as expected ({api_response})"),
+            format!("API Error extracted API response not as expected"),
         );
+        if let ApiError(detailed_err) = err {
+            assert_eq!(detailed_err.api_response.unwrap(), api_response);
+        } else {
+            panic!("Unexpected error!")
+        }
 
         // Check mock called happened
         token_mock.assert();
@@ -108,8 +115,14 @@ mod tests {
         let err = dtl.extract_atom_type(&atom_values).err().unwrap();
         assert_eq!(
             err.to_string(),
-            format!("Parse Error extracted API response not as expected ({api_response})"),
+            format!("API Error extracted API response not as expected"),
         );
+
+        if let ApiError(detailed_err) = err {
+            assert_eq!(detailed_err.api_response.unwrap(), api_response);
+        } else {
+            panic!("Unexpected error!")
+        }
 
         // Check mock called happened
         token_mock.assert();
@@ -134,7 +147,7 @@ mod tests {
             .match_body(Json(json!({
                 "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e ef3363dfe2515b826584ab53c4bb7812 jeithe7eijeefohch3qu.probes.site"
             })))
-            .with_status(200)  // TODO test not found atom
+            .with_status(200)
             .with_body(json!({
                 "found": 3,
                 "not_found": [],
@@ -194,18 +207,22 @@ mod tests {
             .with_status(200)
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
+        let api_status_code: u16 = 401;
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
-            .with_status(401)
+            .with_status(api_status_code as usize)
             .with_body(api_response)
             .create();
         let lookup_mock = mock("POST", "/mrti/threats/bulk-lookup/").create();
         let mut dtl = common::create_datalake();
 
         let err = dtl.bulk_lookup(atom_values_string).err().unwrap();
-        assert_eq!(
-            err.to_string(),
-            format!("Parse Error extracted API response not as expected ({api_response})"),
-        );
+        assert_eq!(err.to_string(),  format!("API Error extracted API response not as expected"));
+        if let ApiError(detailed_err) = err {
+            assert_eq!(detailed_err.api_response.unwrap(), api_response);
+            assert_eq!(detailed_err.api_status_code.unwrap(), StatusCode::from_u16(api_status_code).unwrap());
+        } else {
+            panic!("Unexpected error!")
+        }
 
         token_mock.assert();
         extract_mock.assert();

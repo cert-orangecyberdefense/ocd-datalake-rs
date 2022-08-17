@@ -3,39 +3,72 @@ mod setting;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use reqwest::blocking::Client;
+use reqwest::StatusCode;
 use serde_json::{json, Map, Value};
-use crate::DatalakeError::{AuthenticationError, ParseError};
+use crate::DatalakeError::{AuthenticationError, ApiError, ParseError, HttpError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 #[derive(Debug)]
-pub enum DatalakeError {
-    AuthenticationError(String),  // TODO store summay, API response and API status code in a struct + display != on debug
-    HttpError(String),
-    ParseError(String),
+pub struct DetailedError {
+    pub summary: String,
+    pub api_url: Option<String>,
+    pub api_response: Option<String>,
+    pub api_status_code: Option<StatusCode>,
 }
 
+impl DetailedError {
+    pub fn new(summary: String) -> Self {
+        DetailedError {
+            summary,
+            api_url: None,
+            api_response: None,
+            api_status_code: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum DatalakeError {
+    AuthenticationError(DetailedError),
+    HttpError(DetailedError),
+    ApiError(DetailedError),
+    ParseError(DetailedError),
+}
+
+
+impl fmt::Display for DetailedError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.summary)
+    }
+}
 
 impl fmt::Display for DatalakeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DatalakeError::AuthenticationError(err) => write!(f, "Authentication Error {}", err),
-            DatalakeError::HttpError(err) => write!(f, "HTTP Error {}", err),
-            DatalakeError::ParseError(err) => write!(f, "Parse Error {}", err),
+            AuthenticationError(err) => write!(f, "Authentication Error {}", err),
+            HttpError(err) => write!(f, "HTTP Error {}", err),
+            ApiError(err) => write!(f, "API Error {}", err),
+            ParseError(err) => write!(f, "Parse Error {}", err),
         }
     }
 }
 
 impl From<reqwest::Error> for DatalakeError {
     fn from(error: reqwest::Error) -> Self {
+        let mut detailed_error = DetailedError {
+            summary: error.to_string(),
+            api_url: error.url().map(|u| u.to_string()),
+            api_response: None,
+            api_status_code: error.status(),
+        };
         if error.is_decode() {
-            return Self::ParseError(format!("{}", error));
+            return ParseError(detailed_error);
         }
         // default to http error
-        let url = match error.url() {
-            None => { "<no url>" }
-            Some(url) => { url.as_str() }
-        };
-        Self::HttpError(format!("Could not fetch API for url {}", url))
+        let no_url_string = "<no url>".to_string();
+        let url = detailed_error.api_url.as_ref().unwrap_or(&no_url_string);
+        detailed_error.summary = format!("Could not fetch API for url {}", url);
+        Self::HttpError(detailed_error)
     }
 }
 
@@ -62,17 +95,24 @@ impl Datalake {
     fn retrieve_api_token(&self) -> Result<String, DatalakeError> {
         let mut token = "Token ".to_string();
 
-        let auth_request = self.client.post(&self.settings.routes().authentication);
+        let url = &self.settings.routes().authentication;
+        let auth_request = self.client.post(url);
         let mut json_body = HashMap::new();
         json_body.insert("email", &self.username);
         json_body.insert("password", &self.password);
         let resp = auth_request.json(&json_body).send()?;
+        let status_code = resp.status();
         let json_resp = resp.json::<Value>()?;
         let raw_token = json_resp["access_token"].as_str();
         let op_token = match raw_token {
             None => {
-                let error_message = format!("Invalid credentials ({json_resp})");
-                return Err(AuthenticationError(error_message));
+                let err = DetailedError {
+                    summary: "Invalid credentials".to_string(),
+                    api_url: Some(url.to_string()),
+                    api_response: Some(json_resp.to_string()),
+                    api_status_code: Some(status_code),
+                };
+                return Err(AuthenticationError(err));
             }
             Some(op_token) => { op_token }
         };
@@ -102,16 +142,20 @@ impl Datalake {
         let json_body = json!({
             "content": joined_atom_values,
         });
-        let json_resp = match request.json(&json_body).send() {
-            Ok(resp) => { resp.json::<Value>()? }
-            Err(err) => { panic!("Could not fetch API {:?}: {:?}", &url, err); }
-        };
+        let resp = request.json(&json_body).send()?;
+        let status_code = resp.status();
+        let json_resp = resp.json::<Value>()?;
         let extracted_atom_types = Self::parse_extract_atom_type_result(&json_resp);
         if let Some(extracted) = extracted_atom_types {
             Ok(extracted)
         } else {
-            let error_message = format!("extracted API response not as expected ({json_resp})");
-            Err(ParseError(error_message))
+            let err = DetailedError {
+                summary: "extracted API response not as expected".to_string(),
+                api_url: Some(url),
+                api_response: Some(json_resp.to_string()),
+                api_status_code: Some(status_code),
+            };
+            Err(ApiError(err))
         }
     }
 

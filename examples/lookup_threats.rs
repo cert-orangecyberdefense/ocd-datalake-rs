@@ -1,5 +1,5 @@
 use std::env;
-use ocd_datalake_rs::{Datalake, DatalakeSetting};
+use ocd_datalake_rs::{Datalake, DatalakeError, DatalakeSetting};
 
 fn main() {
     let username = env::var("OCD_DTL_RS_USERNAME").unwrap();
@@ -17,7 +17,10 @@ fn main() {
     ].iter().map(|x| x.to_string()).collect();
     let csv_result: String = match dtl.bulk_lookup(atom_values) {
         Ok(result) => { result }
-        Err(err) => { err.to_string() }  // Redirect the error also to the print
+        Err(err) => {
+            println!("{err}");  // User readable error
+            panic!("{err:#?}");  // Error pretty printed for debug
+        }
     };
-    println!("{}", csv_result);
+    println!("{csv_result}");
 }
