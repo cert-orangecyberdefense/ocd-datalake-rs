@@ -151,12 +151,9 @@ impl Datalake {
         }
 
         let request = self.client.post(&url)
-            .header("Authorization", self.get_token().unwrap())  // TODO
+            .header("Authorization", self.get_token()?)
             .header("Accept", "text/csv");
-        let csv_resp = match request.json(&body).send() {
-            Ok(resp) => { resp.text().unwrap() }
-            Err(err) => { panic!("Could not fetch API {:?}: {:?}", &url, err); }
-        };
+        let csv_resp = request.json(&body).send()?.text()?;
         Ok(csv_resp)
     }
 }

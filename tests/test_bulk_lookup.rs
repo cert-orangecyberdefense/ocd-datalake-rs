@@ -179,4 +179,36 @@ mod tests {
 
         assert_eq!(lookup_result, csv_body);
     }
+
+    #[test]
+    fn test_bulk_lookup_error() {
+        let atom_values = vec![
+            "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e",
+            "ef3363dfe2515b826584ab53c4bb7812",
+            "jeithe7eijeefohch3qu.probes.site",
+        ];
+        let atom_values_string: Vec<String> = atom_values.iter().map(|x| x.to_string()).collect();
+        let api_response = r#"{"message":"Wrong credentials provided"}"#;
+
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
+            .with_status(401)
+            .with_body(api_response)
+            .create();
+        let lookup_mock = mock("POST", "/mrti/threats/bulk-lookup/").create();
+        let mut dtl = common::create_datalake();
+
+        let err = dtl.bulk_lookup(atom_values_string).err().unwrap();
+        assert_eq!(
+            err.to_string(),
+            format!("Parse Error extracted API response not as expected ({api_response})"),
+        );
+
+        token_mock.assert();
+        extract_mock.assert();
+        lookup_mock.expect_at_most(0).assert();  // Lookup is not called if extract failed
+    }
 }

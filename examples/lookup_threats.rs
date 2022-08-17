@@ -15,6 +15,9 @@ fn main() {
         "ef3363dfe2515b826584ab53c4bb7812",
         "jeithe7eijeefohch3qu.probes.site",
     ].iter().map(|x| x.to_string()).collect();
-    let csv_result: String = dtl.bulk_lookup(atom_values).unwrap();
+    let csv_result: String = match dtl.bulk_lookup(atom_values) {
+        Ok(result) => { result }
+        Err(err) => { err.to_string() }  // Redirect the error also to the print
+    };
     println!("{}", csv_result);
 }
