@@ -10,7 +10,7 @@ fn main() {
         DatalakeSetting::preprod()
     );
     let atom_values: Vec<String> = vec!["domain.com", "4.4.4.4", "1.1.1.1"].iter().map(|x| x.to_string()).collect();
-    let extracted = dtl.extract_atom_type(&atom_values);
+    let extracted = dtl.extract_atom_type(&atom_values).expect("API Error");
     for (atom_value, atom_type) in extracted {
         println!("{} is of type {}", atom_value, atom_type);
     }

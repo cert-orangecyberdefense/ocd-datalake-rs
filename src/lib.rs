@@ -4,12 +4,12 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
-use crate::DatalakeError::AuthenticationError;
+use crate::DatalakeError::{AuthenticationError, ParseError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 #[derive(Debug)]
 pub enum DatalakeError {
-    AuthenticationError(String),
+    AuthenticationError(String),  // TODO store summay, API response and API status code in a struct + display != on debug
     HttpError(String),
     ParseError(String),
 }
@@ -32,7 +32,7 @@ impl From<reqwest::Error> for DatalakeError {
         }
         // default to http error
         let url = match error.url() {
-            None => { "<no url>"}
+            None => { "<no url>" }
             Some(url) => { url.as_str() }
         };
         Self::HttpError(format!("Could not fetch API for url {}", url))
@@ -90,10 +90,10 @@ impl Datalake {
     }
 
     /// Return the atom types based on the given atom_values
-    pub fn extract_atom_type(&mut self, atom_values: &[String]) -> BTreeMap<String, String> {    // TODO return results
+    pub fn extract_atom_type(&mut self, atom_values: &[String]) -> Result<BTreeMap<String, String>, DatalakeError> {
         let url = self.settings.routes().atom_values_extract.clone();
         let mut request = self.client.post(&url);
-        request = request.header("Authorization", self.get_token().unwrap());  // TODO
+        request = request.header("Authorization", self.get_token()?);
         let mut joined_atom_values = String::from(&atom_values[0]);
         for value in atom_values.iter().skip(1) {
             joined_atom_values.push(' ');
@@ -103,29 +103,39 @@ impl Datalake {
             "content": joined_atom_values,
         });
         let json_resp = match request.json(&json_body).send() {
-            Ok(resp) => { resp.json::<Value>().unwrap() }
+            Ok(resp) => { resp.json::<Value>()? }
             Err(err) => { panic!("Could not fetch API {:?}: {:?}", &url, err); }
         };
-        let results_value = json_resp.get("results").expect("results key not returned by the API");
-        let results = results_value.as_object().expect("result key not as expected");
+        let extracted_atom_types = Self::parse_extract_atom_type_result(&json_resp);
+        if let Some(extracted) = extracted_atom_types {
+            Ok(extracted)
+        } else {
+            let error_message = format!("extracted API response not as expected ({json_resp})");
+            Err(ParseError(error_message))
+        }
+    }
+
+    fn parse_extract_atom_type_result(json_resp: &Value) -> Option<BTreeMap<String, String>> {
+        let results_value = json_resp.get("results")?;
+        let results = results_value.as_object()?;
         let mut extracted_atom_types = BTreeMap::new();
         for (atom_type, atoms) in results {
-            for atom in atoms.as_array().unwrap() {
-                let atom_value = atom.as_str().unwrap().to_string();
+            for atom in atoms.as_array()? {
+                let atom_value = atom.as_str()?.to_string();
                 extracted_atom_types.insert(atom_value, atom_type.clone());
             }
         }
-        extracted_atom_types
+        Some(extracted_atom_types)
     }
 
     /// Return a CSV of the bulk lookup for given threats
     ///
     /// Threats have their atom type automatically defined (with hash meaning a File type)
-    pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> String {  // TODO return results
+    pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> Result<String, DatalakeError> {
         let url = self.settings.routes().bulk_lookup.clone();
 
         // Construct the body by identifying the atom types
-        let extracted = self.extract_atom_type(&atom_values);
+        let extracted = self.extract_atom_type(&atom_values)?;
         let mut body = Map::new();
         body.insert("hashkey_only".to_string(), Value::Bool(false));
         for (atom_value, atom_type) in extracted {
@@ -143,10 +153,11 @@ impl Datalake {
         let request = self.client.post(&url)
             .header("Authorization", self.get_token().unwrap())  // TODO
             .header("Accept", "text/csv");
-        match request.json(&body).send() {
-            Ok(csv_resp) => { csv_resp.text().unwrap() }
+        let csv_resp = match request.json(&body).send() {
+            Ok(resp) => { resp.text().unwrap() }
             Err(err) => { panic!("Could not fetch API {:?}: {:?}", &url, err); }
-        }
+        };
+        Ok(csv_resp)
     }
 }
 

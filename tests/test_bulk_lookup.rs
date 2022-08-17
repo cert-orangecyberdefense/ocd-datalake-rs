@@ -24,7 +24,7 @@ mod tests {
         let atom_values = vec!["domain.com", "4.4.4.4", "1.1.1.1"];
         let atom_values_string: Vec<String> = atom_values.iter().map(|x| x.to_string()).collect();
 
-        let result = dtl.extract_atom_type(&atom_values_string);
+        let result = dtl.extract_atom_type(&atom_values_string).unwrap();
 
         // Check mock called happened
         token_mock.assert();
@@ -53,7 +53,7 @@ mod tests {
         let mut dtl = common::create_datalake();
         let atom_values = vec!["123".to_string()];
 
-        let result = dtl.extract_atom_type(&atom_values);
+        let result = dtl.extract_atom_type(&atom_values).unwrap();
 
         // Check mock called happened
         token_mock.assert();
@@ -61,6 +61,61 @@ mod tests {
 
         assert!(result.is_empty());  // No result returned
     }
+
+    #[test]
+    fn test_extract_atom_type_with_error() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let api_response = r#"{"messages":{"atom_type":["'wow' is not a valid choice. Valid values: 'apk',"]}}"#;
+        let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
+            .match_body(Json(json!({"content":"123"})))
+            .match_header("Authorization", "Token 123")
+            .with_status(422)
+            .with_body(api_response)
+            .create();
+        let mut dtl = common::create_datalake();
+        let atom_values = vec!["123".to_string()];
+
+        let err = dtl.extract_atom_type(&atom_values).err().unwrap();
+        assert_eq!(
+            err.to_string(),
+            format!("Parse Error extracted API response not as expected ({api_response})"),
+        );
+
+        // Check mock called happened
+        token_mock.assert();
+        extract_mock.assert();
+    }
+
+    #[test]
+    fn test_extract_atom_type_with_non_expected_result() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let api_response = r#"{"results":"API changed, results is now a string"}"#;
+        let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
+            .match_body(Json(json!({"content":"123"})))
+            .match_header("Authorization", "Token 123")
+            .with_status(200)
+            .with_body(api_response)
+            .create();
+        let mut dtl = common::create_datalake();
+        let atom_values = vec!["123".to_string()];
+
+        let err = dtl.extract_atom_type(&atom_values).err().unwrap();
+        assert_eq!(
+            err.to_string(),
+            format!("Parse Error extracted API response not as expected ({api_response})"),
+        );
+
+        // Check mock called happened
+        token_mock.assert();
+        extract_mock.assert();
+    }
+
 
     #[test]
     fn test_bulk_lookup_on_few_values() {
@@ -116,7 +171,7 @@ mod tests {
             .create();
         let mut dtl = common::create_datalake();
 
-        let lookup_result = dtl.bulk_lookup(atom_values_string);
+        let lookup_result = dtl.bulk_lookup(atom_values_string).unwrap();
 
         token_mock.assert();
         extract_mock.assert();
