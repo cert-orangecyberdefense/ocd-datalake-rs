@@ -59,6 +59,22 @@ mod tests {
         token_mock.assert();
     }
 
+    #[test]
+    fn test_creds_error_on_retrieve_token() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(401)
+            .with_body(r#"{"message":"Wrong credentials provided"}"#)
+            .create();
+        let mut dtl = common::create_datalake();
+
+        let err = dtl.get_token().err().unwrap();
+        assert_eq!(
+            err.to_string(),
+            r#"Authentication Error Invalid credentials ({"message":"Wrong credentials provided"})"#,
+        );
+        token_mock.assert();
+    }
+
     /// Check config is not dependant to the workdir
     #[test]
     fn test_default_datalake_on_another_workdir() {

@@ -4,10 +4,12 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
+use crate::DatalakeError::AuthenticationError;
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 #[derive(Debug)]
 pub enum DatalakeError {
+    AuthenticationError(String),
     HttpError(String),
     ParseError(String),
 }
@@ -16,6 +18,7 @@ pub enum DatalakeError {
 impl fmt::Display for DatalakeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            DatalakeError::AuthenticationError(err) => write!(f, "Authentication Error {}", err),
             DatalakeError::HttpError(err) => write!(f, "HTTP Error {}", err),
             DatalakeError::ParseError(err) => write!(f, "Parse Error {}", err),
         }
@@ -65,8 +68,15 @@ impl Datalake {
         json_body.insert("password", &self.password);
         let resp = auth_request.json(&json_body).send()?;
         let json_resp = resp.json::<Value>()?;
-        let raw_token = json_resp["access_token"].as_str().unwrap();  // TODO test error auth
-        token.push_str(raw_token);
+        let raw_token = json_resp["access_token"].as_str();
+        let op_token = match raw_token {
+            None => {
+                let error_message = format!("Invalid credentials ({json_resp})");
+                return Err(AuthenticationError(error_message));
+            }
+            Some(op_token) => { op_token }
+        };
+        token.push_str(op_token);
         Ok(token)
     }
 
@@ -133,11 +143,10 @@ impl Datalake {
         let request = self.client.post(&url)
             .header("Authorization", self.get_token().unwrap())  // TODO
             .header("Accept", "text/csv");
-        let csv_resp = match request.json(&body).send() {
-            Ok(resp) => { resp.text().unwrap() }
+        match request.json(&body).send() {
+            Ok(csv_resp) => { csv_resp.text().unwrap() }
             Err(err) => { panic!("Could not fetch API {:?}: {:?}", &url, err); }
-        };
-        csv_resp
+        }
     }
 }
 
