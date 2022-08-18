@@ -1,4 +1,4 @@
-name: Rust
+name: Rust Check & Test
 
 on:
   push:
@@ -14,7 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
+    - name: Check
+      run: cargo check --verbose
+    - name: Run Tests
       run: cargo test --verbose
+    - name: Run Clippy
+      uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        args: --all-features
