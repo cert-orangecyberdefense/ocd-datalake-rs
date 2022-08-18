@@ -7,7 +7,7 @@ mod tests {
     use mockito::mock;
     use reqwest::StatusCode;
     use serde_json::json;
-    use ocd_datalake_rs::DatalakeError::ApiError;
+    use ocd_datalake_rs::error::DatalakeError::ApiError;
     use crate::common;
 
     #[test]

@@ -10,7 +10,7 @@ mod tests {
     use mockito::mock;
     use reqwest::StatusCode;
     use ocd_datalake_rs::{Datalake, DatalakeSetting};
-    use ocd_datalake_rs::DatalakeError::AuthenticationError;
+    use ocd_datalake_rs::error::DatalakeError::AuthenticationError;
     use crate::common;
 
     lazy_static! {

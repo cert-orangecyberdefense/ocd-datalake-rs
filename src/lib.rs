@@ -1,76 +1,13 @@
-mod setting;
+pub mod setting;
+pub mod error;
 
 use std::collections::{BTreeMap, HashMap};
-use std::fmt;
 use reqwest::blocking::Client;
-use reqwest::StatusCode;
 use serde_json::{json, Map, Value};
-use crate::DatalakeError::{AuthenticationError, ApiError, ParseError, HttpError};
+use crate::error::{DatalakeError, DetailedError};
+use crate::DatalakeError::{ApiError, AuthenticationError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
-#[derive(Debug)]
-pub struct DetailedError {
-    pub summary: String,
-    pub api_url: Option<String>,
-    pub api_response: Option<String>,
-    pub api_status_code: Option<StatusCode>,
-}
-
-impl DetailedError {
-    pub fn new(summary: String) -> Self {
-        DetailedError {
-            summary,
-            api_url: None,
-            api_response: None,
-            api_status_code: None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum DatalakeError {
-    AuthenticationError(DetailedError),
-    HttpError(DetailedError),
-    ApiError(DetailedError),
-    ParseError(DetailedError),
-}
-
-
-impl fmt::Display for DetailedError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.summary)
-    }
-}
-
-impl fmt::Display for DatalakeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            AuthenticationError(err) => write!(f, "Authentication Error {}", err),
-            HttpError(err) => write!(f, "HTTP Error {}", err),
-            ApiError(err) => write!(f, "API Error {}", err),
-            ParseError(err) => write!(f, "Parse Error {}", err),
-        }
-    }
-}
-
-impl From<reqwest::Error> for DatalakeError {
-    fn from(error: reqwest::Error) -> Self {
-        let mut detailed_error = DetailedError {
-            summary: error.to_string(),
-            api_url: error.url().map(|u| u.to_string()),
-            api_response: None,
-            api_status_code: error.status(),
-        };
-        if error.is_decode() {
-            return ParseError(detailed_error);
-        }
-        // default to http error
-        let no_url_string = "<no url>".to_string();
-        let url = detailed_error.api_url.as_ref().unwrap_or(&no_url_string);
-        detailed_error.summary = format!("Could not fetch API for url {}", url);
-        Self::HttpError(detailed_error)
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct Datalake {
