@@ -171,11 +171,11 @@ mod tests {
             .match_body(Json(json!({
                     "hashkey_only": false,
                     "file": [
-                      "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e",
-                      "ef3363dfe2515b826584ab53c4bb7812"
+                        "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e",
+                        "ef3363dfe2515b826584ab53c4bb7812"
                     ],
                     "fqdn": [
-                      "jeithe7eijeefohch3qu.probes.site"
+                        "jeithe7eijeefohch3qu.probes.site"
                     ]
                 }))
             )
@@ -216,7 +216,7 @@ mod tests {
         let mut dtl = common::create_datalake();
 
         let err = dtl.bulk_lookup(atom_values_string).err().unwrap();
-        assert_eq!(err.to_string(),  format!("API Error extracted API response not as expected"));
+        assert_eq!(err.to_string(), format!("API Error extracted API response not as expected"));
         if let ApiError(detailed_err) = err {
             assert_eq!(detailed_err.api_response.unwrap(), api_response);
             assert_eq!(detailed_err.api_status_code.unwrap(), StatusCode::from_u16(api_status_code).unwrap());

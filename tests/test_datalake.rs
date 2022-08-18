@@ -4,7 +4,6 @@ mod common;
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::Path;
     use std::sync::Mutex;
     use lazy_static::lazy_static;
     use mockito::mock;
@@ -87,7 +86,7 @@ mod tests {
     fn test_default_datalake_on_another_workdir() {
         let _mutex = WORKDIR_MUTEX.lock().unwrap();
         let test_work_dir = std::env::current_dir().unwrap();
-        let tmp = Path::new("/tmp");
+        let tmp = std::env::temp_dir();
         assert!(std::env::set_current_dir(&tmp).is_ok());
         Datalake::new(
             "username".to_string(),
