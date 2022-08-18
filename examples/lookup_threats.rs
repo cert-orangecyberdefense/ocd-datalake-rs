@@ -1,5 +1,5 @@
 use std::env;
-use ocd_datalake_rs::{Datalake, DatalakeError, DatalakeSetting};
+use ocd_datalake_rs::{Datalake, DatalakeSetting};
 
 fn main() {
     let username = env::var("OCD_DTL_RS_USERNAME").unwrap();
