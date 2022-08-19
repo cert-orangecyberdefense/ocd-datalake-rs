@@ -17,6 +17,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
+      - id: rustcache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}
       - name: Check
         run: cargo check --verbose
       - name: Run Tests
@@ -27,3 +31,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
+      - name: Set cache used in summary
+        if: ${{ steps.rustcache.outputs.cache-hit }}
+        run: |
+          echo "Cache used :heavy_check_mark: (${{ matrix.os }})" >> $GITHUB_STEP_SUMMARY
+      - name: Set cache NOT used in summary
+        if: ${{ !steps.rustcache.outputs.cache-hit }}
+        run: |
+          echo "Cache not used :x: (${{ matrix.os }})" >> $GITHUB_STEP_SUMMARY
