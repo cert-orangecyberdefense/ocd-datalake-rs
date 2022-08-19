@@ -1,0 +1,10 @@
+(
+    datalake_setting: DatalakeSetting(
+        base_url: "https://custom_host",
+        routes: RoutesSetting(
+            authentication: "{base_url}/auth/token/",
+            atom_values_extract: "{base_url}/mrti/threats/atom-values-extract/",
+            bulk_lookup: "value not tested !",
+        )
+    )
+)
