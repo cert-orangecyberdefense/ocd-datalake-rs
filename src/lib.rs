@@ -1,5 +1,6 @@
 pub mod setting;
 pub mod error;
+pub mod bulk_search;
 
 use std::collections::{BTreeMap, HashMap};
 use reqwest::blocking::Client;
@@ -136,6 +137,11 @@ impl Datalake {
             .header("Accept", "text/csv");
         let csv_resp = request.json(&body).send()?.text()?;
         Ok(csv_resp)
+    }
+
+    /// TODO doc
+    pub fn bulk_search(&mut self, query_hash: String, query_fields: &[String]) -> Result<Vec<String>, DatalakeError> {
+        todo!()
     }
 }
 

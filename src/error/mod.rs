@@ -2,7 +2,7 @@ use std::fmt;
 use reqwest::StatusCode;
 use crate::error::DatalakeError::{ApiError, AuthenticationError, HttpError, ParseError};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct DetailedError {
     pub summary: String,
     pub api_url: Option<String>,
@@ -21,7 +21,7 @@ impl DetailedError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DatalakeError {
     AuthenticationError(DetailedError),
     HttpError(DetailedError),

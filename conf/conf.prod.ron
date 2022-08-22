@@ -5,6 +5,7 @@
             authentication: "{base_url}/auth/token/",
             atom_values_extract: "{base_url}/mrti/threats/atom-values-extract/",
             bulk_lookup: "{base_url}/mrti/threats/bulk-lookup/",
+            bulk_search: "{base_url}/mrti/bulk-search/",
         )
     )
 )
