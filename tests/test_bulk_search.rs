@@ -190,4 +190,29 @@ mod tests {
         };
         assert_eq!(task_created, expected_task)
     }
+
+    #[test]
+    fn test_bulk_search_get_task_on_error() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let task_uid = "task_uuid123";
+        let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
+            .match_body(Json(json!({
+                    "task_uuid": task_uid,
+                }))
+            )
+            .with_status(200)
+            .with_body(json!({ "unexpected json": true }).to_string())
+            .create();
+        let mut dtl = common::create_datalake();
+
+        let error = get_bulk_search_task(&mut dtl, task_uid.to_string()).err().unwrap();
+
+        token_mock.assert();
+        bulk_search_task_mock.assert();
+
+        assert_eq!(error.to_string(), "API Error bulk search task API response not as expected".to_string())
+    }
 }

@@ -73,29 +73,19 @@ pub fn get_bulk_search_task(dtl: &mut Datalake, uuid: TaskUuid) -> Result<BulkSe
         json_resp.as_object()?.get("results")?.get(0).cloned()
     }
 
-    let bulk_search_task = match parse_json_response(json_response) {
-        None => {
-            let err = DetailedError {
-                summary: "bulk search task API response not as expected".to_string(),
-                api_url: Some(url),
-                api_response,
-                api_status_code: Some(status_code),
-            };
-            return Err(ApiError(err));
+    // Prepare an error if the received json is not a BulkSearchTask
+    let summary = "bulk search task API response not as expected".to_string();
+    let err = DetailedError { summary, api_url: Some(url), api_response, api_status_code: Some(status_code) };
+    let api_error = Err(ApiError(err));
+
+    match parse_json_response(json_response) {
+        Some(task) => {
+            match serde_json::from_value::<BulkSearchTask>(task) {
+                Ok(task) => Ok(task),
+                Err(_) =>  api_error,
+            }
         }
-        Some(task) => serde_json::from_value::<BulkSearchTask>(task)
-    };
-    match bulk_search_task {
-        Ok(task) => { Ok(task) }
-        Err(_) => {
-            let err = DetailedError {
-                summary: "bulk search task API response not as expected".to_string(),  // TODO
-                api_url: Some(url),
-                api_response,
-                api_status_code: Some(status_code),
-            };
-            Err(ApiError(err))
-        }
+        None => api_error,
     }
 }
 
