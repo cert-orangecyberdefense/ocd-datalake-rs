@@ -7,9 +7,11 @@ mod tests {
     use mockito::mock;
     use reqwest::StatusCode;
     use serde_json::json;
-    use ocd_datalake_rs::bulk_search::{BulkSearchTask, create_bulk_search_task};
+
+    use ocd_datalake_rs::bulk_search::{BulkSearchTask, create_bulk_search_task, get_bulk_search_task};
     use ocd_datalake_rs::error::DatalakeError::ApiError;
     use ocd_datalake_rs::error::DetailedError;
+
     use crate::common;
 
     #[test]
@@ -73,7 +75,7 @@ mod tests {
             .create();
         let mut dtl = common::create_datalake();
 
-        let task_created = create_bulk_search_task(
+        let task_uuid = create_bulk_search_task(
             &mut dtl,
             query_hash.clone(),
             query_fields.clone(),
@@ -82,13 +84,7 @@ mod tests {
         token_mock.assert();
         bulk_search_mock.assert();
 
-        assert_eq!(task_created, BulkSearchTask {
-            bulk_search_hash: bulk_search_hash_returned.to_string(),
-            for_stix_export: false,
-            query_fields,
-            query_hash,
-            task_uuid: task_uid_returned.to_string(),
-        });
+        assert_eq!(task_uuid, task_uid_returned);
     }
 
     #[test]
@@ -134,5 +130,64 @@ mod tests {
         });
 
         assert_eq!(error, expected_error);
+    }
+
+    #[test]
+    fn test_bulk_search_get_task() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let task_uid = "task_uuid123";
+        let created_at = "2022-08-22T07:11:32.011836+00:00";
+        let started_at = "2022-08-22T07:11:56.673034+00:00";
+        let finished_at = "2022-08-22T07:11:57.797385+00:00";
+        let state = "DONE";
+        let results_number = 2;
+        let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
+            .match_body(Json(json!({
+                    "task_uuid": task_uid,
+                }))
+            )
+            .with_status(200)
+            .with_body(json!({
+                 "count": 1,
+                 "results": [{
+                     "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
+                     "created_at": created_at,
+                     "eta": null,
+                     "file_delete_after": "2022-08-25T07:11:57.797385+00:00",
+                     "file_deleted": false,  // Some extra fields are present but not yet saved
+                     "file_size": 252,
+                     "finished_at": finished_at,
+                     "progress": null,
+                     "queue_position": null,
+                     "results": results_number,
+                     "started_at": started_at,
+                     "state": state,
+                     "uuid": task_uid,
+                 }]
+            }).to_string())
+            .create();
+        let mut dtl = common::create_datalake();
+
+        let task_created = get_bulk_search_task(
+            &mut dtl,
+            task_uid.to_string(),
+        ).unwrap();
+
+        token_mock.assert();
+        bulk_search_task_mock.assert();
+
+        let expected_task = BulkSearchTask {
+            created_at: created_at.to_string(),
+            started_at: started_at.to_string(),
+            finished_at: finished_at.to_string(),
+            queue_position: None,
+            results: results_number,
+            state: state.to_string(),
+            uuid: task_uid.to_string(),
+        };
+        assert_eq!(task_created, expected_task)
     }
 }
