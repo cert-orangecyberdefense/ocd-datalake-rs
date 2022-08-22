@@ -82,7 +82,7 @@ pub fn get_bulk_search_task(dtl: &mut Datalake, uuid: TaskUuid) -> Result<BulkSe
         Some(task) => {
             match serde_json::from_value::<BulkSearchTask>(task) {
                 Ok(task) => Ok(task),
-                Err(_) =>  api_error,
+                Err(_) => api_error,
             }
         }
         None => api_error,
@@ -96,7 +96,18 @@ pub fn download_bulk_search(dtl: &mut Datalake, uuid: TaskUuid) -> Result<String
     let request = dtl.client.get(&url)
         .header("Authorization", dtl.get_token()?)
         .header("Accept", "text/csv");
-    let resp = request.send()?;  // TODO check status code is 200 => 202 means not ready yet
+    let resp = request.send()?;
+    let status_code = resp.status();
+
+    if status_code == 202 {
+        let err = DetailedError {
+            summary: format!("bulk search with task uuid: {uuid} is not ready to be downloaded"),
+            api_url: Some(url),
+            api_response: match resp.text() { Ok(r) => Some(r), Err(_) => None },
+            api_status_code: Some(status_code)
+        };
+        return Err(ApiError(err));
+    }
     Ok(resp.text()?)
 }
 

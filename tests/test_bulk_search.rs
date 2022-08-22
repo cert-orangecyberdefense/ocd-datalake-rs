@@ -223,7 +223,7 @@ mod tests {
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
         let task_uid = "task_uuid123";
-        let bulk_search_response_expected = json!({ "result": "some bulk search" }).to_string();
+        let bulk_search_response_expected = json!({ "result": "some bulk search" }).to_string();  // TODO to csv
         let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/tasks/{task_uid}").as_str())
             .match_header("Authorization", "Token 123")
             .match_header("Accept", "text/csv")
@@ -237,5 +237,25 @@ mod tests {
         token_mock.assert();
         bulk_search_task_mock.assert();
         assert_eq!(bulk_search_response, bulk_search_response_expected)
+    }
+
+    #[test]
+    fn test_bulk_search_download_on_not_ready_task() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let task_uid = "task_uuid123";
+        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/tasks/{task_uid}").as_str())
+            .with_status(202)  // 202 means not ready
+            .with_body("bulk search is not ready")
+            .create();
+        let mut dtl = common::create_datalake();
+
+        let error = download_bulk_search(&mut dtl, task_uid.to_string()).err().unwrap();
+
+        token_mock.assert();
+        bulk_search_task_mock.assert();
+        assert_eq!(error.to_string(), format!("API Error bulk search with task uuid: {task_uid} is not ready to be downloaded"));
     }
 }
