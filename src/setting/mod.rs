@@ -12,6 +12,7 @@ pub struct RoutesSetting {
     pub bulk_lookup: String,
     pub bulk_search: String,
     pub bulk_search_task: String,
+    pub bulk_search_download: String,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -39,6 +40,7 @@ impl DatalakeSetting {
             bulk_lookup: self.routes.bulk_lookup.replace("{base_url}", &self.base_url),
             bulk_search: self.routes.bulk_search.replace("{base_url}", &self.base_url),
             bulk_search_task: self.routes.bulk_search_task.replace("{base_url}", &self.base_url),
+            bulk_search_download: self.routes.bulk_search_download.replace("{base_url}", &self.base_url),
         })
     }
 

@@ -7,6 +7,7 @@
             bulk_lookup: "value not tested !",
             bulk_search: "value not tested !",
             bulk_search_task: "value not tested !",
+            bulk_search_download: "value not tested !",
         )
     )
 )

@@ -8,7 +8,7 @@ mod tests {
     use reqwest::StatusCode;
     use serde_json::json;
 
-    use ocd_datalake_rs::bulk_search::{BulkSearchTask, create_bulk_search_task, get_bulk_search_task};
+    use ocd_datalake_rs::bulk_search::{BulkSearchTask, create_bulk_search_task, download_bulk_search, get_bulk_search_task};
     use ocd_datalake_rs::error::DatalakeError::ApiError;
     use ocd_datalake_rs::error::DetailedError;
 
@@ -214,5 +214,28 @@ mod tests {
         bulk_search_task_mock.assert();
 
         assert_eq!(error.to_string(), "API Error bulk search task API response not as expected".to_string())
+    }
+
+    #[test]
+    fn test_bulk_search_download() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let task_uid = "task_uuid123";
+        let bulk_search_response_expected = json!({ "result": "some bulk search" }).to_string();
+        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/tasks/{task_uid}").as_str())
+            .match_header("Authorization", "Token 123")
+            .match_header("Accept", "text/csv")
+            .with_status(200)
+            .with_body(bulk_search_response_expected.clone())
+            .create();
+        let mut dtl = common::create_datalake();
+
+        let bulk_search_response = download_bulk_search(&mut dtl, task_uid.to_string()).unwrap();
+
+        token_mock.assert();
+        bulk_search_task_mock.assert();
+        assert_eq!(bulk_search_response, bulk_search_response_expected)
     }
 }
