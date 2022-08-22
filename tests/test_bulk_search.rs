@@ -223,7 +223,7 @@ mod tests {
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
         let task_uid = "task_uuid123";
-        let bulk_search_response_expected = json!({ "result": "some bulk search" }).to_string();  // TODO to csv
+        let bulk_search_response_expected = "some bulk search csv result".to_string();
         let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/tasks/{task_uid}").as_str())
             .match_header("Authorization", "Token 123")
             .match_header("Accept", "text/csv")
