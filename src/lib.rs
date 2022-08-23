@@ -5,6 +5,7 @@ pub mod bulk_search;
 use std::collections::{BTreeMap, HashMap};
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
+use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task};
 use crate::error::{DatalakeError, DetailedError};
 use crate::DatalakeError::{ApiError, AuthenticationError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
@@ -140,8 +141,15 @@ impl Datalake {
     }
 
     /// TODO doc
-    pub fn bulk_search(&mut self, query_hash: String, query_fields: &[String]) -> Result<Vec<String>, DatalakeError> {
-        todo!()
+    /// TODO change return result
+    pub fn bulk_search(&mut self, query_hash: String, query_fields: Vec<String>) -> Result<String, DatalakeError> {
+        let task_uuid = create_bulk_search_task( self, query_hash, query_fields)?;
+        let mut bulk_search_is_ready = false;
+        while !bulk_search_is_ready {
+            let task = get_bulk_search_task(self, task_uuid.clone())?;  // TODO try to remove the clone
+            bulk_search_is_ready = task.state == *"DONE";  // TODO handle stop after X minutes
+        }  // TODO set DONE in const
+        download_bulk_search(self, task_uuid)
     }
 }
 

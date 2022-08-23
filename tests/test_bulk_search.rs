@@ -15,7 +15,6 @@ mod tests {
     use crate::common;
 
     #[test]
-    #[ignore]
     fn test_bulk_search() {
         let query_hash = "query_hash123".to_string();
         let query_fields = vec!["atom_value".to_string()];
@@ -38,14 +37,54 @@ mod tests {
                 "task_uuid": "task_uuid123"
             }).to_string())
             .create();
+        let task_uid = "task_uuid123";
+        let created_at = "2022-08-22T07:11:32.011836+00:00";
+        let started_at = "2022-08-22T07:11:56.673034+00:00";
+        let finished_at = "2022-08-22T07:11:57.797385+00:00";
+        let state = "DONE";
+        let results_number = 2;
+        let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
+            .match_body(Json(json!({
+                    "task_uuid": task_uid,
+                }))
+            )
+            .with_status(200)
+            .with_body(json!({
+                 "count": 1,
+                 "results": [{
+                     "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
+                     "created_at": created_at,
+                     "eta": null,
+                     "file_delete_after": "2022-08-25T07:11:57.797385+00:00",
+                     "file_deleted": false,  // Some extra fields are present but not yet saved
+                     "file_size": 252,
+                     "finished_at": finished_at,
+                     "progress": null,
+                     "queue_position": null,
+                     "results": results_number,
+                     "started_at": started_at,
+                     "state": state,
+                     "uuid": task_uid,
+                 }]
+            }).to_string())
+            .create();
+        let bulk_search_response_expected = "some bulk search csv result".to_string();
+        let bulk_search_download_mock = mock("GET", format!("/mrti/bulk-search/tasks/{task_uid}").as_str())
+            .match_header("Authorization", "Token 123")
+            .match_header("Accept", "text/csv")
+            .with_status(200)
+            .with_body(bulk_search_response_expected.clone())
+            .create();
         let mut dtl = common::create_datalake();
 
-        let task_created = dtl.bulk_search(query_hash, &query_fields).unwrap();
+        let task_created = dtl.bulk_search(query_hash, query_fields).unwrap();
 
         token_mock.assert();
         bulk_search_mock.assert();
+        bulk_search_task_mock.assert();  // TODO test with tasks having != state
+        bulk_search_download_mock.assert();
 
-        assert_eq!(task_created, vec!["42".to_string()]);  // TODO
+        assert_eq!(task_created, bulk_search_response_expected);
     }
 
     #[test]
