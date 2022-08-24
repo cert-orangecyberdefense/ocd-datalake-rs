@@ -12,7 +12,7 @@ use crate::error::{DatalakeError, DetailedError};
 use crate::DatalakeError::{ApiError, AuthenticationError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
-pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";  // TODO put in function ?
+pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";
 
 #[derive(Clone, Debug)]
 pub struct Datalake {
@@ -149,7 +149,7 @@ impl Datalake {
         let task_uuid = create_bulk_search_task( self, query_hash, query_fields)?;
         let mut bulk_search_is_ready = false;
         while !bulk_search_is_ready {
-            thread::sleep(Duration::from_secs(1));  // TODO set in config + easily change it (for test in particular !)
+            thread::sleep(Duration::from_secs(self.settings.bulk_search_retry_interval_sec));
             let task = get_bulk_search_task(self, task_uuid.clone())?;  // TODO try to remove the clone
             bulk_search_is_ready = task.state == *DONE_STATUS;  // TODO handle stop after X minutes
         }

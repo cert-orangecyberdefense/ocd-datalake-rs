@@ -21,6 +21,8 @@ pub struct DatalakeSetting {
     routes: RoutesSetting,
     // raw routes with {base_url} in them
     formatted_routes: Option<RoutesSetting>,  // final routes, only set after replace_base_url is called
+    // Other settings
+    pub bulk_search_retry_interval_sec: u64,
 }
 
 impl DatalakeSetting {

@@ -8,6 +8,7 @@
             bulk_search: "{base_url}/mrti/bulk-search/",
             bulk_search_task: "{base_url}/mrti/bulk-search/tasks/",
             bulk_search_download: "{base_url}/mrti/bulk-search/task/{task_uuid}",
-        )
+        ),
+        bulk_search_retry_interval_sec: 10,
     )
 )

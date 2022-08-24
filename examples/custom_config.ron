@@ -8,6 +8,7 @@
             bulk_search: "value not tested !",
             bulk_search_task: "value not tested !",
             bulk_search_download: "value not tested !",
-        )
+        ),
+        bulk_search_retry_interval_sec: 10,
     )
 )
