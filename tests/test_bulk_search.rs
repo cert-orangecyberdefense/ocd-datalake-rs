@@ -69,7 +69,7 @@ mod tests {
             }).to_string())
             .create();
         let bulk_search_response_expected = "some bulk search csv result".to_string();
-        let bulk_search_download_mock = mock("GET", format!("/mrti/bulk-search/tasks/{task_uid}").as_str())
+        let bulk_search_download_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
             .match_header("Authorization", "Token 123")
             .match_header("Accept", "text/csv")
             .with_status(200)
@@ -220,14 +220,72 @@ mod tests {
 
         let expected_task = BulkSearchTask {
             created_at: created_at.to_string(),
-            started_at: started_at.to_string(),
-            finished_at: finished_at.to_string(),
+            started_at: Some(started_at.to_string()),
+            finished_at: Some(finished_at.to_string()),
             queue_position: None,
-            results: results_number,
+            results: Some(results_number),
             state: state.to_string(),
             uuid: task_uid.to_string(),
         };
         assert_eq!(task_created, expected_task)
+    }
+
+    #[test]
+    /// The returned bulk search task has a lot of null fields as it was just created
+    fn test_bulk_search_get_task_newly_created() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
+            .with_status(200)
+            .with_body(json!({
+                  "count": 1,
+                  "results": [
+                    {
+                      "bulk_search": {
+                        "advanced_query_hash": "fbecd3d440a7d439a2a1fd996c703a8d",
+                        "for_stix_export": false,
+                        "query_fields": [
+                          "atom_value"
+                        ]
+                      },
+                      "bulk_search_hash": "6b9708debe40c2b11932b0fa9ec0b134",
+                      "created_at": "2022-08-24T06:54:39.420074+00:00",
+                      "eta": "2022-08-24T06:54:40.760737+00:00",
+                      "file_delete_after": null,
+                      "file_deleted": false,
+                      "file_size": null,
+                      "finished_at": null,
+                      "progress": 0,
+                      "queue_position": null,
+                      "results": null,
+                      "started_at": null,
+                      "state": "NEW",
+                      "user": {
+                        "email": "hugo.chastel@orange.com",
+                        "full_name": "hugo chastel",
+                        "id": 287,
+                        "organization": {
+                          "id": 12,
+                          "name": "OCD",
+                          "path_names": [
+                            "OCD"
+                          ]
+                        }
+                      },
+                      "uuid": "61a5efff-b0c0-4d4d-b4fa-5d4d7611cce5"
+                    }
+                  ]
+                }).to_string())
+            .create();
+        let mut dtl = common::create_datalake();
+
+        let task_created = get_bulk_search_task(&mut dtl, "task_uid123".to_string()).unwrap();
+
+        token_mock.assert();
+        bulk_search_task_mock.assert();
+        assert_eq!(task_created.state, "NEW")
     }
 
     #[test]
@@ -263,7 +321,7 @@ mod tests {
             .create();
         let task_uid = "task_uuid123";
         let bulk_search_response_expected = "some bulk search csv result".to_string();
-        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/tasks/{task_uid}").as_str())
+        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
             .match_header("Authorization", "Token 123")
             .match_header("Accept", "text/csv")
             .with_status(200)
@@ -285,7 +343,7 @@ mod tests {
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
         let task_uid = "task_uuid123";
-        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/tasks/{task_uid}").as_str())
+        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
             .with_status(202)  // 202 means not ready
             .with_body("bulk search is not ready")
             .create();
@@ -296,5 +354,26 @@ mod tests {
         token_mock.assert();
         bulk_search_task_mock.assert();
         assert_eq!(error.to_string(), format!("API Error bulk search with task uuid: {task_uid} is not ready to be downloaded"));
+    }
+
+    #[test]
+    /// If return status code is 4xx or 5xx,
+    fn test_bulk_search_download_on_not_expected_status_code() {
+        let token_mock = mock("POST", "/auth/token/")
+            .with_status(200)
+            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
+            .create();
+        let task_uid = "task_uuid123";
+        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
+            .with_status(404)
+            .with_body("url not found")
+            .create();
+        let mut dtl = common::create_datalake();
+
+        let error = download_bulk_search(&mut dtl, task_uid.to_string()).err().unwrap();
+
+        token_mock.assert();
+        bulk_search_task_mock.assert();
+        assert_eq!(error.to_string(), format!("API Error bulk search with task uuid: {task_uid} returned error code 404 Not Found"));
     }
 }

@@ -3,13 +3,16 @@ pub mod error;
 pub mod bulk_search;
 
 use std::collections::{BTreeMap, HashMap};
+use std::thread;
+use std::time::Duration;
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
-use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task};
+use crate::bulk_search::{create_bulk_search_task, DONE_STATUS, download_bulk_search, get_bulk_search_task};
 use crate::error::{DatalakeError, DetailedError};
 use crate::DatalakeError::{ApiError, AuthenticationError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
+pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";  // TODO put in function ?
 
 #[derive(Clone, Debug)]
 pub struct Datalake {
@@ -146,9 +149,10 @@ impl Datalake {
         let task_uuid = create_bulk_search_task( self, query_hash, query_fields)?;
         let mut bulk_search_is_ready = false;
         while !bulk_search_is_ready {
+            thread::sleep(Duration::from_secs(1));  // TODO set in config + easily change it (for test in particular !)
             let task = get_bulk_search_task(self, task_uuid.clone())?;  // TODO try to remove the clone
-            bulk_search_is_ready = task.state == *"DONE";  // TODO handle stop after X minutes
-        }  // TODO set DONE in const
+            bulk_search_is_ready = task.state == *DONE_STATUS;  // TODO handle stop after X minutes
+        }
         download_bulk_search(self, task_uuid)
     }
 }

@@ -4,13 +4,16 @@ use crate::{ApiError, Datalake, DatalakeError, DetailedError};
 
 type TaskUuid = String;
 
+pub const DONE_STATUS: &str = "DONE";
+
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct BulkSearchTask {
     pub created_at: String,
-    pub started_at: String,
-    pub finished_at: String,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
     pub queue_position: Option<i64>,
-    pub results: i64,
+    pub results: Option<i64>,
     pub state: String,
     pub uuid: TaskUuid,
 }
@@ -105,6 +108,15 @@ pub fn download_bulk_search(dtl: &mut Datalake, uuid: TaskUuid) -> Result<String
             api_url: Some(url),
             api_response: match resp.text() { Ok(r) => Some(r), Err(_) => None },
             api_status_code: Some(status_code)
+        };
+        return Err(ApiError(err));
+    }
+    if resp.error_for_status_ref().is_err() {
+        let err = DetailedError {
+            summary: format!("bulk search with task uuid: {uuid} returned error code {status_code}"),
+            api_url: Some(url),
+            api_response: match resp.text() { Ok(r) => Some(r), Err(_) => None },
+            api_status_code: Some(status_code),
         };
         return Err(ApiError(err));
     }
