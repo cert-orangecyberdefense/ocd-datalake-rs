@@ -7,7 +7,6 @@ pub mod bulk_search;
 use std::collections::{BTreeMap, HashMap};
 use std::thread;
 use std::time::{Duration, Instant};
-use std::str::FromStr;
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
 use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task, State};
@@ -163,12 +162,7 @@ impl Datalake {
             }
             thread::sleep(Duration::from_secs(self.settings.bulk_search_retry_interval_sec));
             let task = get_bulk_search_task(self, task_uuid.clone())?;
-            let state: State = match State::from_str(&task.state) {
-                Ok(state) => state,
-                Err(_) => {
-                    return Err(ApiError(DetailedError::new(format!("Bulk search is in unexpected state: {}", task.state))));
-                }
-            };
+            let state = task.get_state()?;
             bulk_search_is_ready = match state {
                 State::DONE => true,
                 State::NEW | State::QUEUED | State::IN_PROGRESS => false,  // bulk search is not ready yet

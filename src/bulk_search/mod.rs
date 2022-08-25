@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use crate::{ApiError, Datalake, DatalakeError, DetailedError};
 use strum_macros::{EnumString, Display};
+use std::str::FromStr;
 
 type TaskUuid = String;
 
@@ -27,6 +28,18 @@ pub struct BulkSearchTask {
     pub results: Option<i64>,
     pub state: String,
     pub uuid: TaskUuid,
+}
+
+impl BulkSearchTask {
+    pub fn get_state(&self) -> Result<State, DatalakeError> {
+        match State::from_str(&self.state) {
+            Ok(state) => Ok(state),
+            Err(_) => {
+                let error_summary = format!("Bulk search is in unexpected state: {}", self.state);
+                Err(ApiError(DetailedError::new(error_summary)))
+            }
+        }
+    }
 }
 
 /// Create a bulk search task and return its task_uuid
@@ -117,8 +130,11 @@ pub fn download_bulk_search(dtl: &mut Datalake, uuid: TaskUuid) -> Result<String
         let err = DetailedError {
             summary: format!("bulk search with task uuid: {uuid} is not ready to be downloaded"),
             api_url: Some(url),
-            api_response: match resp.text() { Ok(r) => Some(r), Err(_) => None },
-            api_status_code: Some(status_code)
+            api_response: match resp.text() {
+                Ok(r) => Some(r),
+                Err(_) => None
+            },
+            api_status_code: Some(status_code),
         };
         return Err(ApiError(err));
     }
@@ -126,7 +142,10 @@ pub fn download_bulk_search(dtl: &mut Datalake, uuid: TaskUuid) -> Result<String
         let err = DetailedError {
             summary: format!("bulk search with task uuid: {uuid} returned error code {status_code}"),
             api_url: Some(url),
-            api_response: match resp.text() { Ok(r) => Some(r), Err(_) => None },
+            api_response: match resp.text() {
+                Ok(r) => Some(r),
+                Err(_) => None
+            },
             api_status_code: Some(status_code),
         };
         return Err(ApiError(err));
