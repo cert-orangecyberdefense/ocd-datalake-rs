@@ -1,5 +1,5 @@
 # OCD_DATALAKE_RS
-`ocd_datalake_rs` is a Rust library to interact with Orange Cyberdefense's [Datalake](datalake.cert.orangecyberdefense.com).  
+`ocd_datalake_rs` is a Rust library to interact with Orange Cyberdefense's [Datalake](https://datalake.cert.orangecyberdefense.com/).  
 
 ## Functionalities implemented
 * Bulk lookup
