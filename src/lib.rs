@@ -153,9 +153,9 @@ impl Datalake {
         let mut bulk_search_is_ready = false;
         while !bulk_search_is_ready {
             thread::sleep(Duration::from_secs(self.settings.bulk_search_retry_interval_sec));
-            let task = get_bulk_search_task(self, task_uuid.clone())?;  // TODO try to remove the clone
-            bulk_search_is_ready = task.state == *DONE_STATUS;  // TODO handle stop after X minutes
-        }
+            let task = get_bulk_search_task(self, task_uuid.clone())?;
+            bulk_search_is_ready = task.state == *DONE_STATUS;
+        } // TODO handle stop after X minutes
         download_bulk_search(self, task_uuid)
     }
 }
