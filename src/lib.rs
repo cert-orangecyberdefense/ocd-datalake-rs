@@ -6,13 +6,13 @@ pub mod bulk_search;
 
 use std::collections::{BTreeMap, HashMap};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::str::FromStr;
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
 use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task, State};
 use crate::error::{DatalakeError, DetailedError};
-use crate::DatalakeError::{ApiError, AuthenticationError};
+use crate::DatalakeError::{ApiError, AuthenticationError, TimeoutError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";
@@ -153,8 +153,14 @@ impl Datalake {
     /// > :warning: the function is blocking while the bulk search is being processed by the API (up to 1h)
     pub fn bulk_search(&mut self, query_hash: String, query_fields: Vec<String>) -> Result<String, DatalakeError> {
         let task_uuid = create_bulk_search_task(self, query_hash, query_fields)?;
+        let timeout = self.settings.bulk_search_timeout_sec;
+        let start_time = Instant::now();
         let mut bulk_search_is_ready = false;
         while !bulk_search_is_ready {
+            if start_time.elapsed().as_secs() > timeout {
+                let error_summary = format!("Bulk search is not finished after {timeout} seconds");
+                return Err(TimeoutError(DetailedError::new(error_summary)));
+            }
             thread::sleep(Duration::from_secs(self.settings.bulk_search_retry_interval_sec));
             let task = get_bulk_search_task(self, task_uuid.clone())?;
             let state: State = match State::from_str(&task.state) {
@@ -170,7 +176,7 @@ impl Datalake {
                     return Err(ApiError(DetailedError::new(format!("Bulk search is in {state} state"))));
                 }
             }
-        } // TODO handle stop after X minutes
+        }
         download_bulk_search(self, task_uuid)
     }
 }

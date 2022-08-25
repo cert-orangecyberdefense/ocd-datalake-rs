@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt;
 use reqwest::StatusCode;
+use crate::DatalakeError::TimeoutError;
 use crate::error::DatalakeError::{ApiError, AuthenticationError, HttpError, ParseError};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -27,6 +28,7 @@ pub enum DatalakeError {
     AuthenticationError(DetailedError),
     HttpError(DetailedError),
     ApiError(DetailedError),
+    TimeoutError(DetailedError),
     ParseError(DetailedError),
 }
 
@@ -42,6 +44,7 @@ impl fmt::Display for DatalakeError {
         match self {
             AuthenticationError(err) => write!(f, "Authentication Error {}", err),
             HttpError(err) => write!(f, "HTTP Error {}", err),
+            TimeoutError(err) => write!(f, "Timeout Error {}", err),
             ApiError(err) => write!(f, "API Error {}", err),
             ParseError(err) => write!(f, "Parse Error {}", err),
         }
