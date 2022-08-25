@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt;
 use reqwest::StatusCode;
 use crate::error::DatalakeError::{ApiError, AuthenticationError, HttpError, ParseError};
@@ -68,6 +69,7 @@ impl From<reqwest::Error> for DatalakeError {
 
 impl From<strum::ParseError> for DatalakeError {
     fn from(error: strum::ParseError) -> Self {
-        todo!()  // TODO + test
+        let unexpected_state = error.source().unwrap().to_string();
+        ApiError(DetailedError::new(format!("Bulk search is in unexpected state: {unexpected_state}")))
     }
 }

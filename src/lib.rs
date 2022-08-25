@@ -157,10 +157,15 @@ impl Datalake {
         while !bulk_search_is_ready {
             thread::sleep(Duration::from_secs(self.settings.bulk_search_retry_interval_sec));
             let task = get_bulk_search_task(self, task_uuid.clone())?;
-            let state: bulk_search::State = bulk_search::State::from_str(&task.state)?;
+            let state: State = match State::from_str(&task.state) {
+                Ok(state) => state,
+                Err(_) => {
+                    return Err(ApiError(DetailedError::new(format!("Bulk search is in unexpected state: {}", task.state))));
+                }
+            };
             bulk_search_is_ready = match state {
                 State::DONE => true,
-                State::NEW | State::QUEUED | State::IN_PROGRESS=> false,  // bulk search is not ready yet
+                State::NEW | State::QUEUED | State::IN_PROGRESS => false,  // bulk search is not ready yet
                 State::CANCELLED | State::FAILED_ERROR | State::FAILED_TIMEOUT => {
                     return Err(ApiError(DetailedError::new(format!("Bulk search is in {state} state"))));
                 }
