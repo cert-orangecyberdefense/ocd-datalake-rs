@@ -5,7 +5,7 @@
 * Bulk lookup
 * Bulk search
 
-> :note:
+> **Note**
 > Only CSV format is returned as of now 
 
 Check [open issues](https://github.com/cert-orangecyberdefense/ocd-datalake-rs/issues) to see what is planned

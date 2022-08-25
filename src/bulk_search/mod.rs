@@ -117,7 +117,7 @@ pub fn get_bulk_search_task(dtl: &mut Datalake, uuid: TaskUuid) -> Result<BulkSe
 }
 
 /// Retrieve a bulk search result from a task.
-/// > :warning: task must be in DONE state to be downloaded successfully
+/// > **Warning** task must be in DONE state to be downloaded successfully
 pub fn download_bulk_search(dtl: &mut Datalake, uuid: TaskUuid) -> Result<String, DatalakeError> {
     let url = dtl.settings.routes().bulk_search_download.replace("{task_uuid}", &uuid);
     let request = dtl.client.get(&url)
