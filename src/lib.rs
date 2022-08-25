@@ -119,6 +119,8 @@ impl Datalake {
     /// Return a CSV of the bulk lookup for given threats
     ///
     /// Threats have their atom type automatically defined (with hash meaning a File type)
+    /// > :warning: Above a hundred values, the API might reject the request
+    /// > TODO implement the logic behind the scene by looping over chunk of the provided values
     pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> Result<String, DatalakeError> {
         let url = self.settings.routes().bulk_lookup.clone();
 
