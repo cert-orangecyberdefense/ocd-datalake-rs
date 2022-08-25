@@ -1,10 +1,21 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use crate::{ApiError, Datalake, DatalakeError, DetailedError};
+use strum_macros::{EnumString, Display};
 
 type TaskUuid = String;
 
-pub const DONE_STATUS: &str = "DONE";
+#[allow(non_camel_case_types)]
+#[derive(Debug, Display, PartialEq, Eq, EnumString)]
+pub enum State {
+    NEW,
+    QUEUED,
+    IN_PROGRESS,
+    DONE,
+    CANCELLED,
+    FAILED_ERROR,
+    FAILED_TIMEOUT,
+}
 
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]

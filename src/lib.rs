@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod setting;
 pub mod error;
 pub mod bulk_search;
@@ -5,9 +7,10 @@ pub mod bulk_search;
 use std::collections::{BTreeMap, HashMap};
 use std::thread;
 use std::time::Duration;
+use std::str::FromStr;
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
-use crate::bulk_search::{create_bulk_search_task, DONE_STATUS, download_bulk_search, get_bulk_search_task};
+use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task, State};
 use crate::error::{DatalakeError, DetailedError};
 use crate::DatalakeError::{ApiError, AuthenticationError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
@@ -149,12 +152,19 @@ impl Datalake {
     /// For now the result is returned as a CSV.
     /// > :warning: the function is blocking while the bulk search is being processed by the API (up to 1h)
     pub fn bulk_search(&mut self, query_hash: String, query_fields: Vec<String>) -> Result<String, DatalakeError> {
-        let task_uuid = create_bulk_search_task( self, query_hash, query_fields)?;
+        let task_uuid = create_bulk_search_task(self, query_hash, query_fields)?;
         let mut bulk_search_is_ready = false;
         while !bulk_search_is_ready {
             thread::sleep(Duration::from_secs(self.settings.bulk_search_retry_interval_sec));
             let task = get_bulk_search_task(self, task_uuid.clone())?;
-            bulk_search_is_ready = task.state == *DONE_STATUS;
+            let state: bulk_search::State = bulk_search::State::from_str(&task.state)?;
+            bulk_search_is_ready = match state {
+                State::DONE => true,
+                State::NEW | State::QUEUED | State::IN_PROGRESS=> false,  // bulk search is not ready yet
+                State::CANCELLED | State::FAILED_ERROR | State::FAILED_TIMEOUT => {
+                    return Err(ApiError(DetailedError::new(format!("Bulk search is in {state} state"))));
+                }
+            }
         } // TODO handle stop after X minutes
         download_bulk_search(self, task_uuid)
     }

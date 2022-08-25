@@ -65,3 +65,9 @@ impl From<reqwest::Error> for DatalakeError {
         Self::HttpError(detailed_error)
     }
 }
+
+impl From<strum::ParseError> for DatalakeError {
+    fn from(error: strum::ParseError) -> Self {
+        todo!()  // TODO + test
+    }
+}
