@@ -3,13 +3,15 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use mockito::Matcher::Json;
     use mockito::mock;
+    use mockito::Matcher::Json;
     use reqwest::StatusCode;
-    use serde_json::json;
     use rstest::rstest;
+    use serde_json::json;
 
-    use ocd_datalake_rs::bulk_search::{BulkSearchTask, create_bulk_search_task, download_bulk_search, get_bulk_search_task, State};
+    use ocd_datalake_rs::bulk_search::{
+        create_bulk_search_task, download_bulk_search, get_bulk_search_task, BulkSearchTask, State,
+    };
     use ocd_datalake_rs::error::DatalakeError::ApiError;
     use ocd_datalake_rs::error::DetailedError;
 
@@ -25,18 +27,20 @@ mod tests {
             .create();
         let bulk_search_mock = mock("POST", "/mrti/bulk-search/")
             .match_body(Json(json!({
-                    "query_hash": query_hash,
-                    "query_fields": query_fields,
-                }))
-            )
+                "query_hash": query_hash,
+                "query_fields": query_fields,
+            })))
             .with_status(200)
-            .with_body(json!({
-                "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
-                "for_stix_export": false,
-                "query_fields": ["atom_value"],
-                "query_hash": "query_hash123",
-                "task_uuid": "task_uuid123"
-            }).to_string())
+            .with_body(
+                json!({
+                    "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
+                    "for_stix_export": false,
+                    "query_fields": ["atom_value"],
+                    "query_hash": "query_hash123",
+                    "task_uuid": "task_uuid123"
+                })
+                .to_string(),
+            )
             .create();
         let task_uid = "task_uuid123";
         let created_at = "2022-08-22T07:11:32.011836+00:00";
@@ -46,36 +50,39 @@ mod tests {
         let results_number = 2;
         let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
             .match_body(Json(json!({
-                    "task_uuid": task_uid,
-                }))
-            )
+                "task_uuid": task_uid,
+            })))
             .with_status(200)
-            .with_body(json!({
-                 "count": 1,
-                 "results": [{
-                     "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
-                     "created_at": created_at,
-                     "eta": null,
-                     "file_delete_after": "2022-08-25T07:11:57.797385+00:00",
-                     "file_deleted": false,  // Some extra fields are present but not yet saved
-                     "file_size": 252,
-                     "finished_at": finished_at,
-                     "progress": null,
-                     "queue_position": null,
-                     "results": results_number,
-                     "started_at": started_at,
-                     "state": state,
-                     "uuid": task_uid,
-                 }]
-            }).to_string())
+            .with_body(
+                json!({
+                    "count": 1,
+                    "results": [{
+                        "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
+                        "created_at": created_at,
+                        "eta": null,
+                        "file_delete_after": "2022-08-25T07:11:57.797385+00:00",
+                        "file_deleted": false,  // Some extra fields are present but not yet saved
+                        "file_size": 252,
+                        "finished_at": finished_at,
+                        "progress": null,
+                        "queue_position": null,
+                        "results": results_number,
+                        "started_at": started_at,
+                        "state": state,
+                        "uuid": task_uid,
+                    }]
+                })
+                .to_string(),
+            )
             .create();
         let bulk_search_response_expected = "some bulk search csv result".to_string();
-        let bulk_search_download_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
-            .match_header("Authorization", "Token 123")
-            .match_header("Accept", "text/csv")
-            .with_status(200)
-            .with_body(bulk_search_response_expected.clone())
-            .create();
+        let bulk_search_download_mock =
+            mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
+                .match_header("Authorization", "Token 123")
+                .match_header("Accept", "text/csv")
+                .with_status(200)
+                .with_body(bulk_search_response_expected.clone())
+                .create();
         let mut dtl = common::create_datalake();
 
         let task_created = dtl.bulk_search(query_hash, query_fields).unwrap();
@@ -100,26 +107,25 @@ mod tests {
         let bulk_search_hash_returned = "0bac54db1a8bdc1371bd06a80a1334af";
         let bulk_search_mock = mock("POST", "/mrti/bulk-search/")
             .match_body(Json(json!({
-                    "query_hash": query_hash,
-                    "query_fields": query_fields,
-                }))
-            )
+                "query_hash": query_hash,
+                "query_fields": query_fields,
+            })))
             .with_status(200)
-            .with_body(json!({
-                "bulk_search_hash": bulk_search_hash_returned,
-                "for_stix_export": false,
-                "query_fields": ["atom_value"],
-                "query_hash": "query_hash123",
-                "task_uuid": task_uid_returned
-            }).to_string())
+            .with_body(
+                json!({
+                    "bulk_search_hash": bulk_search_hash_returned,
+                    "for_stix_export": false,
+                    "query_fields": ["atom_value"],
+                    "query_hash": "query_hash123",
+                    "task_uuid": task_uid_returned
+                })
+                .to_string(),
+            )
             .create();
         let mut dtl = common::create_datalake();
 
-        let task_uuid = create_bulk_search_task(
-            &mut dtl,
-            query_hash.clone(),
-            query_fields.clone(),
-        ).unwrap();
+        let task_uuid =
+            create_bulk_search_task(&mut dtl, query_hash.clone(), query_fields.clone()).unwrap();
 
         token_mock.assert();
         bulk_search_mock.assert();
@@ -139,22 +145,22 @@ mod tests {
         let endpoint_path = "/mrti/bulk-search/";
         let bulk_search_mock = mock("POST", endpoint_path)
             .match_body(Json(json!({
-                    "query_hash": query_hash,
-                    "query_fields": query_fields,
-                }))
-            )
+                "query_hash": query_hash,
+                "query_fields": query_fields,
+            })))
             .with_status(api_status_code)
-            .with_body(json!({
-                "msg": "error no one could have predicted"
-            }).to_string())
+            .with_body(
+                json!({
+                    "msg": "error no one could have predicted"
+                })
+                .to_string(),
+            )
             .create();
         let mut dtl = common::create_datalake();
 
-        let error = create_bulk_search_task(
-            &mut dtl,
-            query_hash.clone(),
-            query_fields.clone(),
-        ).err().unwrap();
+        let error = create_bulk_search_task(&mut dtl, query_hash.clone(), query_fields.clone())
+            .err()
+            .unwrap();
 
         token_mock.assert();
         bulk_search_mock.assert();
@@ -163,9 +169,12 @@ mod tests {
         let expected_error = ApiError(DetailedError {
             summary: "bulk search API response not as expected".to_string(),
             api_url: Some(api_url),
-            api_response: Some(json!({
-                "msg": "error no one could have predicted"
-            }).to_string()),
+            api_response: Some(
+                json!({
+                    "msg": "error no one could have predicted"
+                })
+                .to_string(),
+            ),
             api_status_code: Some(StatusCode::from_u16(api_status_code as u16).unwrap()),
         });
 
@@ -186,35 +195,34 @@ mod tests {
         let results_number = 2;
         let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
             .match_body(Json(json!({
-                    "task_uuid": task_uid,
-                }))
-            )
+                "task_uuid": task_uid,
+            })))
             .with_status(200)
-            .with_body(json!({
-                 "count": 1,
-                 "results": [{
-                     "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
-                     "created_at": created_at,
-                     "eta": null,
-                     "file_delete_after": "2022-08-25T07:11:57.797385+00:00",
-                     "file_deleted": false,  // Some extra fields are present but not yet saved
-                     "file_size": 252,
-                     "finished_at": finished_at,
-                     "progress": null,
-                     "queue_position": null,
-                     "results": results_number,
-                     "started_at": started_at,
-                     "state": state,
-                     "uuid": task_uid,
-                 }]
-            }).to_string())
+            .with_body(
+                json!({
+                    "count": 1,
+                    "results": [{
+                        "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
+                        "created_at": created_at,
+                        "eta": null,
+                        "file_delete_after": "2022-08-25T07:11:57.797385+00:00",
+                        "file_deleted": false,  // Some extra fields are present but not yet saved
+                        "file_size": 252,
+                        "finished_at": finished_at,
+                        "progress": null,
+                        "queue_position": null,
+                        "results": results_number,
+                        "started_at": started_at,
+                        "state": state,
+                        "uuid": task_uid,
+                    }]
+                })
+                .to_string(),
+            )
             .create();
         let mut dtl = common::create_datalake();
 
-        let task_created = get_bulk_search_task(
-            &mut dtl,
-            task_uid.to_string(),
-        ).unwrap();
+        let task_created = get_bulk_search_task(&mut dtl, task_uid.to_string()).unwrap();
 
         token_mock.assert();
         bulk_search_task_mock.assert();
@@ -240,7 +248,8 @@ mod tests {
             .create();
         let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
             .with_status(200)
-            .with_body(json!({
+            .with_body(
+                json!({
                   "count": 1,
                   "results": [
                     {
@@ -278,7 +287,9 @@ mod tests {
                       "uuid": "61a5efff-b0c0-4d4d-b4fa-5d4d7611cce5"
                     }
                   ]
-                }).to_string())
+                })
+                .to_string(),
+            )
             .create();
         let mut dtl = common::create_datalake();
 
@@ -298,20 +309,24 @@ mod tests {
         let task_uid = "task_uuid123";
         let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
             .match_body(Json(json!({
-                    "task_uuid": task_uid,
-                }))
-            )
+                "task_uuid": task_uid,
+            })))
             .with_status(200)
             .with_body(json!({ "unexpected json": true }).to_string())
             .create();
         let mut dtl = common::create_datalake();
 
-        let error = get_bulk_search_task(&mut dtl, task_uid.to_string()).err().unwrap();
+        let error = get_bulk_search_task(&mut dtl, task_uid.to_string())
+            .err()
+            .unwrap();
 
         token_mock.assert();
         bulk_search_task_mock.assert();
 
-        assert_eq!(error.to_string(), "API Error bulk search task API response not as expected".to_string())
+        assert_eq!(
+            error.to_string(),
+            "API Error bulk search task API response not as expected".to_string()
+        )
     }
 
     #[test]
@@ -322,12 +337,13 @@ mod tests {
             .create();
         let task_uid = "task_uuid123";
         let bulk_search_response_expected = "some bulk search csv result".to_string();
-        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
-            .match_header("Authorization", "Token 123")
-            .match_header("Accept", "text/csv")
-            .with_status(200)
-            .with_body(bulk_search_response_expected.clone())
-            .create();
+        let bulk_search_task_mock =
+            mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
+                .match_header("Authorization", "Token 123")
+                .match_header("Accept", "text/csv")
+                .with_status(200)
+                .with_body(bulk_search_response_expected.clone())
+                .create();
         let mut dtl = common::create_datalake();
 
         let bulk_search_response = download_bulk_search(&mut dtl, task_uid.to_string()).unwrap();
@@ -344,17 +360,25 @@ mod tests {
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
         let task_uid = "task_uuid123";
-        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
-            .with_status(202)  // 202 means not ready
-            .with_body("bulk search is not ready")
-            .create();
+        let bulk_search_task_mock =
+            mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
+                .with_status(202) // 202 means not ready
+                .with_body("bulk search is not ready")
+                .create();
         let mut dtl = common::create_datalake();
 
-        let error = download_bulk_search(&mut dtl, task_uid.to_string()).err().unwrap();
+        let error = download_bulk_search(&mut dtl, task_uid.to_string())
+            .err()
+            .unwrap();
 
         token_mock.assert();
         bulk_search_task_mock.assert();
-        assert_eq!(error.to_string(), format!("API Error bulk search with task uuid: {task_uid} is not ready to be downloaded"));
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "API Error bulk search with task uuid: {task_uid} is not ready to be downloaded"
+            )
+        );
     }
 
     #[test]
@@ -365,13 +389,16 @@ mod tests {
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
         let task_uid = "task_uuid123";
-        let bulk_search_task_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
-            .with_status(404)
-            .with_body("url not found")
-            .create();
+        let bulk_search_task_mock =
+            mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
+                .with_status(404)
+                .with_body("url not found")
+                .create();
         let mut dtl = common::create_datalake();
 
-        let error = download_bulk_search(&mut dtl, task_uid.to_string()).err().unwrap();
+        let error = download_bulk_search(&mut dtl, task_uid.to_string())
+            .err()
+            .unwrap();
 
         token_mock.assert();
         bulk_search_task_mock.assert();
@@ -391,18 +418,20 @@ mod tests {
             .create();
         let bulk_search_mock = mock("POST", "/mrti/bulk-search/")
             .match_body(Json(json!({
-                    "query_hash": query_hash,
-                    "query_fields": query_fields,
-                }))
-            )
+                "query_hash": query_hash,
+                "query_fields": query_fields,
+            })))
             .with_status(200)
-            .with_body(json!({
-                "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
-                "for_stix_export": false,
-                "query_fields": ["atom_value"],
-                "query_hash": "query_hash123",
-                "task_uuid": "task_uuid123"
-            }).to_string())
+            .with_body(
+                json!({
+                    "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
+                    "for_stix_export": false,
+                    "query_fields": ["atom_value"],
+                    "query_hash": "query_hash123",
+                    "task_uuid": "task_uuid123"
+                })
+                .to_string(),
+            )
             .create();
         let task_uid = "task_uuid123";
         let created_at = "2022-08-22T07:11:32.011836+00:00";
@@ -412,59 +441,64 @@ mod tests {
         let results_number = 2;
         let no_ready_state_mock = mock("POST", "/mrti/bulk-search/tasks/")
             .match_body(Json(json!({
-                    "task_uuid": task_uid,
-                }))
-            )
+                "task_uuid": task_uid,
+            })))
             .with_status(200)
-            .with_body(json!({
-                 "count": 1,
-                 "results": [{
-                     "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
-                     "created_at": created_at,
-                     "eta": null,
-                     "finished_at": null,
-                     "progress": null,
-                     "queue_position": null,
-                     "results": null,
-                     "started_at": started_at,
-                     "state": not_ready_state,
-                     "uuid": task_uid,
-                 }]
-            }).to_string())
-            .expect(2)  // stay in progress for 2 API call
+            .with_body(
+                json!({
+                    "count": 1,
+                    "results": [{
+                        "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
+                        "created_at": created_at,
+                        "eta": null,
+                        "finished_at": null,
+                        "progress": null,
+                        "queue_position": null,
+                        "results": null,
+                        "started_at": started_at,
+                        "state": not_ready_state,
+                        "uuid": task_uid,
+                    }]
+                })
+                .to_string(),
+            )
+            .expect(2) // stay in progress for 2 API call
             .create();
         let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
             .match_body(Json(json!({
-                    "task_uuid": task_uid,
-                }))
-            )
+                "task_uuid": task_uid,
+            })))
             .with_status(200)
-            .with_body(json!({
-                 "count": 1,
-                 "results": [{
-                     "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
-                     "created_at": created_at,
-                     "eta": null,
-                     "file_delete_after": "2022-08-25T07:11:57.797385+00:00",
-                     "file_deleted": false,  // Some extra fields are present but not yet saved
-                     "file_size": 252,
-                     "finished_at": finished_at,
-                     "progress": null,
-                     "queue_position": null,
-                     "results": results_number,
-                     "started_at": started_at,
-                     "state": state,
-                     "uuid": task_uid,
-                 }]
-            }).to_string())
+            .with_body(
+                json!({
+                    "count": 1,
+                    "results": [{
+                        "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
+                        "created_at": created_at,
+                        "eta": null,
+                        "file_delete_after": "2022-08-25T07:11:57.797385+00:00",
+                        "file_deleted": false,  // Some extra fields are present but not yet saved
+                        "file_size": 252,
+                        "finished_at": finished_at,
+                        "progress": null,
+                        "queue_position": null,
+                        "results": results_number,
+                        "started_at": started_at,
+                        "state": state,
+                        "uuid": task_uid,
+                    }]
+                })
+                .to_string(),
+            )
             .create();
         let bulk_search_response_expected = "some bulk search csv result".to_string();
-        let bulk_search_download_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
-            .match_header("Authorization", "Token 123")
-            .match_header("Accept", "text/csv")
-            .with_status(200)
-            .with_body(bulk_search_response_expected.clone())
-            .create();
+        let bulk_search_download_mock =
+            mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
+                .match_header("Authorization", "Token 123")
+                .match_header("Accept", "text/csv")
+                .with_status(200)
+                .with_body(bulk_search_response_expected.clone())
+                .create();
         let mut dtl = common::create_datalake();
 
         let task_created = dtl.bulk_search(query_hash, query_fields).unwrap();
@@ -491,51 +525,56 @@ mod tests {
             .create();
         let bulk_search_mock = mock("POST", "/mrti/bulk-search/")
             .match_body(Json(json!({
-                    "query_hash": query_hash,
-                    "query_fields": query_fields,
-                }))
-            )
+                "query_hash": query_hash,
+                "query_fields": query_fields,
+            })))
             .with_status(200)
-            .with_body(json!({
-                "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
-                "for_stix_export": false,
-                "query_fields": ["atom_value"],
-                "query_hash": "query_hash123",
-                "task_uuid": "task_uuid123"
-            }).to_string())
+            .with_body(
+                json!({
+                    "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
+                    "for_stix_export": false,
+                    "query_fields": ["atom_value"],
+                    "query_hash": "query_hash123",
+                    "task_uuid": "task_uuid123"
+                })
+                .to_string(),
+            )
             .create();
         let task_uid = "task_uuid123";
         let created_at = "2022-08-22T07:11:32.011836+00:00";
         let started_at = "2022-08-22T07:11:56.673034+00:00";
         let error_state_mock = mock("POST", "/mrti/bulk-search/tasks/")
             .match_body(Json(json!({
-                    "task_uuid": task_uid,
-                }))
+                "task_uuid": task_uid,
+            })))
+            .with_status(200)
+            .with_body(
+                json!({
+                    "count": 1,
+                    "results": [{
+                        "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
+                        "created_at": created_at,
+                        "eta": null,
+                        "finished_at": null,
+                        "progress": null,
+                        "queue_position": null,
+                        "results": null,
+                        "started_at": started_at,
+                        "state": error_state,
+                        "uuid": task_uid,
+                    }]
+                })
+                .to_string(),
             )
-            .with_status(200)
-            .with_body(json!({
-                 "count": 1,
-                 "results": [{
-                     "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
-                     "created_at": created_at,
-                     "eta": null,
-                     "finished_at": null,
-                     "progress": null,
-                     "queue_position": null,
-                     "results": null,
-                     "started_at": started_at,
-                     "state": error_state,
-                     "uuid": task_uid,
-                 }]
-            }).to_string())
             .create();
-        let bulk_search_download_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
-            .match_header("Authorization", "Token 123")
-            .match_header("Accept", "text/csv")
-            .with_status(200)
-            .with_body("some body")
-            .expect(0)  // Download should not be called
-            .create();
+        let bulk_search_download_mock =
+            mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
+                .match_header("Authorization", "Token 123")
+                .match_header("Accept", "text/csv")
+                .with_status(200)
+                .with_body("some body")
+                .expect(0) // Download should not be called
+                .create();
         let mut dtl = common::create_datalake();
 
         let error = dtl.bulk_search(query_hash, query_fields).err().unwrap();
@@ -545,7 +584,10 @@ mod tests {
         error_state_mock.assert();
         bulk_search_download_mock.assert();
 
-        assert_eq!(error.to_string(), format!("API Error Bulk search is in {error_state} state"));
+        assert_eq!(
+            error.to_string(),
+            format!("API Error Bulk search is in {error_state} state")
+        );
     }
 
     #[test]
@@ -559,51 +601,56 @@ mod tests {
             .create();
         let bulk_search_mock = mock("POST", "/mrti/bulk-search/")
             .match_body(Json(json!({
-                    "query_hash": query_hash,
-                    "query_fields": query_fields,
-                }))
-            )
+                "query_hash": query_hash,
+                "query_fields": query_fields,
+            })))
             .with_status(200)
-            .with_body(json!({
-                "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
-                "for_stix_export": false,
-                "query_fields": ["atom_value"],
-                "query_hash": "query_hash123",
-                "task_uuid": "task_uuid123"
-            }).to_string())
+            .with_body(
+                json!({
+                    "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
+                    "for_stix_export": false,
+                    "query_fields": ["atom_value"],
+                    "query_hash": "query_hash123",
+                    "task_uuid": "task_uuid123"
+                })
+                .to_string(),
+            )
             .create();
         let task_uid = "task_uuid123";
         let created_at = "2022-08-22T07:11:32.011836+00:00";
         let started_at = "2022-08-22T07:11:56.673034+00:00";
         let error_state_mock = mock("POST", "/mrti/bulk-search/tasks/")
             .match_body(Json(json!({
-                    "task_uuid": task_uid,
-                }))
+                "task_uuid": task_uid,
+            })))
+            .with_status(200)
+            .with_body(
+                json!({
+                    "count": 1,
+                    "results": [{
+                        "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
+                        "created_at": created_at,
+                        "eta": null,
+                        "finished_at": null,
+                        "progress": null,
+                        "queue_position": null,
+                        "results": null,
+                        "started_at": started_at,
+                        "state": unexpected_state,
+                        "uuid": task_uid,
+                    }]
+                })
+                .to_string(),
             )
-            .with_status(200)
-            .with_body(json!({
-                 "count": 1,
-                 "results": [{
-                     "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
-                     "created_at": created_at,
-                     "eta": null,
-                     "finished_at": null,
-                     "progress": null,
-                     "queue_position": null,
-                     "results": null,
-                     "started_at": started_at,
-                     "state": unexpected_state,
-                     "uuid": task_uid,
-                 }]
-            }).to_string())
             .create();
-        let bulk_search_download_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
-            .match_header("Authorization", "Token 123")
-            .match_header("Accept", "text/csv")
-            .with_status(200)
-            .with_body("some body")
-            .expect(0)  // Download should not be called
-            .create();
+        let bulk_search_download_mock =
+            mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
+                .match_header("Authorization", "Token 123")
+                .match_header("Accept", "text/csv")
+                .with_status(200)
+                .with_body("some body")
+                .expect(0) // Download should not be called
+                .create();
         let mut dtl = common::create_datalake();
 
         let error = dtl.bulk_search(query_hash, query_fields).err().unwrap();
@@ -613,7 +660,10 @@ mod tests {
         error_state_mock.assert();
         bulk_search_download_mock.assert();
 
-        assert_eq!(error.to_string(), format!("API Error Bulk search is in unexpected state: {unexpected_state}"));
+        assert_eq!(
+            error.to_string(),
+            format!("API Error Bulk search is in unexpected state: {unexpected_state}")
+        );
     }
 
     #[test]
@@ -626,18 +676,20 @@ mod tests {
             .create();
         let bulk_search_mock = mock("POST", "/mrti/bulk-search/")
             .match_body(Json(json!({
-                    "query_hash": query_hash,
-                    "query_fields": query_fields,
-                }))
-            )
+                "query_hash": query_hash,
+                "query_fields": query_fields,
+            })))
             .with_status(200)
-            .with_body(json!({
-                "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
-                "for_stix_export": false,
-                "query_fields": ["atom_value"],
-                "query_hash": "query_hash123",
-                "task_uuid": "task_uuid123"
-            }).to_string())
+            .with_body(
+                json!({
+                    "bulk_search_hash": "0bac54db1a8bdc1371bd06a80a1334af",
+                    "for_stix_export": false,
+                    "query_fields": ["atom_value"],
+                    "query_hash": "query_hash123",
+                    "task_uuid": "task_uuid123"
+                })
+                .to_string(),
+            )
             .create();
         let task_uid = "task_uuid123";
         let created_at = "2022-08-22T07:11:32.011836+00:00";
@@ -645,34 +697,37 @@ mod tests {
         let progress_state = format!("{}", State::IN_PROGRESS);
         let bulk_search_task_mock = mock("POST", "/mrti/bulk-search/tasks/")
             .match_body(Json(json!({
-                    "task_uuid": task_uid,
-                }))
+                "task_uuid": task_uid,
+            })))
+            .with_status(200)
+            .with_body(
+                json!({
+                    "count": 1,
+                    "results": [{
+                        "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
+                        "created_at": created_at,
+                        "eta": null,
+                        "finished_at": null,
+                        "progress": null,
+                        "queue_position": null,
+                        "results": null,
+                        "started_at": started_at,
+                        "state": progress_state,
+                        "uuid": task_uid,
+                    }]
+                })
+                .to_string(),
             )
-            .with_status(200)
-            .with_body(json!({
-                 "count": 1,
-                 "results": [{
-                     "bulk_search_hash": "0ff239b3dd01cec5cd8343a7e9f1ae84",
-                     "created_at": created_at,
-                     "eta": null,
-                     "finished_at": null,
-                     "progress": null,
-                     "queue_position": null,
-                     "results": null,
-                     "started_at": started_at,
-                     "state": progress_state,
-                     "uuid": task_uid,
-                 }]
-            }).to_string())
-            .expect_at_least(2)  // Should be continuously called until timeout
+            .expect_at_least(2) // Should be continuously called until timeout
             .create();
-        let bulk_search_download_mock = mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
-            .match_header("Authorization", "Token 123")
-            .match_header("Accept", "text/csv")
-            .with_status(200)
-            .with_body("some body")
-            .expect(0)  // Download should not be called
-            .create();
+        let bulk_search_download_mock =
+            mock("GET", format!("/mrti/bulk-search/task/{task_uid}").as_str())
+                .match_header("Authorization", "Token 123")
+                .match_header("Accept", "text/csv")
+                .with_status(200)
+                .with_body("some body")
+                .expect(0) // Download should not be called
+                .create();
         let mut dtl = common::create_datalake();
 
         let error = dtl.bulk_search(query_hash, query_fields).err().unwrap();
@@ -682,6 +737,9 @@ mod tests {
         bulk_search_task_mock.assert();
         bulk_search_download_mock.assert();
 
-        assert_eq!(error.to_string(), format!("Timeout Error Bulk search is not finished after 1 seconds"));
+        assert_eq!(
+            error.to_string(),
+            format!("Timeout Error Bulk search is not finished after 1 seconds")
+        );
     }
 }
