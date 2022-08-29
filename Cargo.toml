@@ -6,6 +6,7 @@ authors = ["Orange Cyberdefense CERT"]
 description = "Library wrapper around Orange Cyberdefense's Datalake API"
 repository = "https://github.com/cert-orangecyberdefense/ocd-datalake-rs"
 readme = "README.md"
+license = "MIT"
 exclude = [
     ".github/*",
 ]
