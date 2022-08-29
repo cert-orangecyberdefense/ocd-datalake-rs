@@ -1,8 +1,10 @@
+use std::error::Error;
 use std::fmt;
 use reqwest::StatusCode;
+use crate::DatalakeError::TimeoutError;
 use crate::error::DatalakeError::{ApiError, AuthenticationError, HttpError, ParseError};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct DetailedError {
     pub summary: String,
     pub api_url: Option<String>,
@@ -21,11 +23,12 @@ impl DetailedError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DatalakeError {
     AuthenticationError(DetailedError),
     HttpError(DetailedError),
     ApiError(DetailedError),
+    TimeoutError(DetailedError),
     ParseError(DetailedError),
 }
 
@@ -41,6 +44,7 @@ impl fmt::Display for DatalakeError {
         match self {
             AuthenticationError(err) => write!(f, "Authentication Error {}", err),
             HttpError(err) => write!(f, "HTTP Error {}", err),
+            TimeoutError(err) => write!(f, "Timeout Error {}", err),
             ApiError(err) => write!(f, "API Error {}", err),
             ParseError(err) => write!(f, "Parse Error {}", err),
         }
@@ -63,5 +67,12 @@ impl From<reqwest::Error> for DatalakeError {
         let url = detailed_error.api_url.as_ref().unwrap_or(&no_url_string);
         detailed_error.summary = format!("Could not fetch API for url {}", url);
         Self::HttpError(detailed_error)
+    }
+}
+
+impl From<strum::ParseError> for DatalakeError {
+    fn from(error: strum::ParseError) -> Self {
+        let unexpected_state = error.source().unwrap().to_string();
+        ApiError(DetailedError::new(format!("Bulk search is in unexpected state: {unexpected_state}")))
     }
 }

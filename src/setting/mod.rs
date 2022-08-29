@@ -10,6 +10,9 @@ pub struct RoutesSetting {
     pub authentication: String,
     pub atom_values_extract: String,
     pub bulk_lookup: String,
+    pub bulk_search: String,
+    pub bulk_search_task: String,
+    pub bulk_search_download: String,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -18,6 +21,9 @@ pub struct DatalakeSetting {
     routes: RoutesSetting,
     // raw routes with {base_url} in them
     formatted_routes: Option<RoutesSetting>,  // final routes, only set after replace_base_url is called
+    // Other settings
+    pub bulk_search_retry_interval_sec: u64,
+    pub bulk_search_timeout_sec: u64,
 }
 
 impl DatalakeSetting {
@@ -35,6 +41,9 @@ impl DatalakeSetting {
             authentication: self.routes.authentication.replace("{base_url}", &self.base_url),
             atom_values_extract: self.routes.atom_values_extract.replace("{base_url}", &self.base_url),
             bulk_lookup: self.routes.bulk_lookup.replace("{base_url}", &self.base_url),
+            bulk_search: self.routes.bulk_search.replace("{base_url}", &self.base_url),
+            bulk_search_task: self.routes.bulk_search_task.replace("{base_url}", &self.base_url),
+            bulk_search_download: self.routes.bulk_search_download.replace("{base_url}", &self.base_url),
         })
     }
 

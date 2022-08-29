@@ -2,15 +2,23 @@
 name = "ocd_datalake_rs"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Orange Cyberdefense CERT"]
+description = "Library wrapper around Orange Cyberdefense's Datalake API"
+repository = "https://github.com/cert-orangecyberdefense/ocd-datalake-rs"
+readme = "README.md"
+exclude = [
+    ".github/*",
+]
 
 [dependencies]
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.48"
 config = "0.13.1"
+strum = "0.24"
+strum_macros = "0.24"
 
 [dev-dependencies]
 mockito = "0.31.0"
 lazy_static = "1.4.0"
+rstest = "0.15.0"

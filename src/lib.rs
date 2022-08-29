@@ -1,13 +1,20 @@
+extern crate core;
+
 pub mod setting;
 pub mod error;
+pub mod bulk_search;
 
 use std::collections::{BTreeMap, HashMap};
+use std::thread;
+use std::time::{Duration, Instant};
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
+use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task, State};
 use crate::error::{DatalakeError, DetailedError};
-use crate::DatalakeError::{ApiError, AuthenticationError};
+use crate::DatalakeError::{ApiError, AuthenticationError, TimeoutError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
+pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";
 
 #[derive(Clone, Debug)]
 pub struct Datalake {
@@ -112,6 +119,8 @@ impl Datalake {
     /// Return a CSV of the bulk lookup for given threats
     ///
     /// Threats have their atom type automatically defined (with hash meaning a File type)
+    /// > **Warning** Above a hundred values, the API might reject the request
+    /// > TODO implement the logic behind the scene by looping over chunk of the provided values
     pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> Result<String, DatalakeError> {
         let url = self.settings.routes().bulk_lookup.clone();
 
@@ -136,6 +145,35 @@ impl Datalake {
             .header("Accept", "text/csv");
         let csv_resp = request.json(&body).send()?.text()?;
         Ok(csv_resp)
+    }
+
+    /// Retrieve all the results of a query using its query_hash.
+    ///
+    /// Fields returned depend on query_fields.
+    /// For now the result is returned as a CSV.
+    /// > **Warning** the function is blocking while the bulk search is being processed by the API (up to 1h)
+    pub fn bulk_search(&mut self, query_hash: String, query_fields: Vec<String>) -> Result<String, DatalakeError> {
+        let task_uuid = create_bulk_search_task(self, query_hash, query_fields)?;
+        let timeout = self.settings.bulk_search_timeout_sec;
+        let start_time = Instant::now();
+        let mut bulk_search_is_ready = false;
+        while !bulk_search_is_ready {
+            if start_time.elapsed().as_secs() > timeout {
+                let error_summary = format!("Bulk search is not finished after {timeout} seconds");
+                return Err(TimeoutError(DetailedError::new(error_summary)));
+            }
+            thread::sleep(Duration::from_secs(self.settings.bulk_search_retry_interval_sec));
+            let task = get_bulk_search_task(self, task_uuid.clone())?;
+            let state = task.get_state()?;
+            bulk_search_is_ready = match state {
+                State::DONE => true,
+                State::NEW | State::QUEUED | State::IN_PROGRESS => false,  // bulk search is not ready yet
+                State::CANCELLED | State::FAILED_ERROR | State::FAILED_TIMEOUT => {
+                    return Err(ApiError(DetailedError::new(format!("Bulk search ended with {state} state"))));
+                }
+            }
+        }
+        download_bulk_search(self, task_uuid)
     }
 }
 

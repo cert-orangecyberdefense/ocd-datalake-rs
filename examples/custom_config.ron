@@ -5,6 +5,11 @@
             authentication: "{base_url}/auth/token/",
             atom_values_extract: "{base_url}/mrti/threats/atom-values-extract/",
             bulk_lookup: "value not tested !",
-        )
+            bulk_search: "value not tested !",
+            bulk_search_task: "value not tested !",
+            bulk_search_download: "value not tested !",
+        ),
+        bulk_search_retry_interval_sec: 10,  // check bulk search status every 10 seconds
+        bulk_search_timeout_sec: 3600,  // timeout after one hour
     )
 )
