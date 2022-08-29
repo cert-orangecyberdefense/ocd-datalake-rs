@@ -51,16 +51,12 @@ pub fn create_bulk_search_task(dtl: &mut Datalake, query_hash: String, query_fie
     let query_fields_serialized = Value::Array(query_fields.into_iter().map(Value::String).collect());
     body.insert("query_fields".to_string(), query_fields_serialized);
 
-    //
     let request = dtl.client.post(&url)
         .header("Authorization", dtl.get_token()?)
         .header("Accept", "text/csv");
     let resp = request.json(&body).send()?;
-
-    // Prepare fields for error message
     let status_code = resp.status();
     let json_response = resp.json::<Value>()?;
-    let api_response = Some(json_response.to_string());
 
     fn parse_json_response(json_resp: &Value) -> Option<String> {
         Some(json_resp.as_object()?.get("task_uuid")?.as_str()?.to_string())
@@ -72,7 +68,7 @@ pub fn create_bulk_search_task(dtl: &mut Datalake, query_hash: String, query_fie
             let err = DetailedError {
                 summary: "bulk search API response not as expected".to_string(),
                 api_url: Some(url),
-                api_response,
+                api_response: Some(json_response.to_string()),
                 api_status_code: Some(status_code),
             };
             Err(ApiError(err))

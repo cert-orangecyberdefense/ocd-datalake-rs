@@ -169,7 +169,7 @@ impl Datalake {
                 State::DONE => true,
                 State::NEW | State::QUEUED | State::IN_PROGRESS => false,  // bulk search is not ready yet
                 State::CANCELLED | State::FAILED_ERROR | State::FAILED_TIMEOUT => {
-                    return Err(ApiError(DetailedError::new(format!("Bulk search is in {state} state"))));
+                    return Err(ApiError(DetailedError::new(format!("Bulk search ended with {state} state"))));
                 }
             }
         }

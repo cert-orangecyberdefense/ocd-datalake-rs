@@ -586,7 +586,7 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            format!("API Error Bulk search is in {error_state} state")
+            format!("API Error Bulk search ended with {error_state} state")
         );
     }
 
