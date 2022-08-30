@@ -127,16 +127,8 @@ impl Datalake {
                 csv_merged = csv;
             } else {
                 let body = match csv.split_once('\n') {
-                    None => {
-                        let detailed_error = DetailedError {
-                            summary: "unexpected csv result, missing body".to_string(),
-                            api_url: None,
-                            api_response: Some(csv.to_string()),
-                            api_status_code: None,
-                        };
-                        return Err(ApiError(detailed_error))
-                    }
-                    Some((_header, body)) => { body }
+                    Some((_header, body)) => body,
+                    None => return Err(Self::csv_without_new_line_error(csv)),
                 };
                 csv_merged = format!("{csv_merged}{body}");
             }
@@ -145,6 +137,16 @@ impl Datalake {
             }
         }
         Ok(csv_merged)
+    }
+
+    fn csv_without_new_line_error(csv: String) -> DatalakeError {
+        let detailed_error = DetailedError {
+            summary: "unexpected csv result, missing body".to_string(),
+            api_url: None,
+            api_response: Some(csv),
+            api_status_code: None,
+        };
+        ApiError(detailed_error)
     }
 
     /// Bulk lookup a chunk of atom_values
