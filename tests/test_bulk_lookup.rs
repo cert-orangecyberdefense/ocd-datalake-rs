@@ -433,7 +433,7 @@ mod tests {
             .create();
 
         let error = custom_dtl.bulk_lookup(atom_values_string).err().unwrap();
-        assert_eq!(error.to_string(), format!("API Error unexpected csv result, missing body"));
+        assert_eq!(error.to_string(), "API Error unexpected csv result, missing body".to_string());
         match error {
             ApiError(details) => {
                 assert_eq!(details.api_response, Some(incorrect_csv_returned.to_string()));
