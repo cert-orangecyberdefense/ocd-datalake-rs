@@ -11,7 +11,7 @@ use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
 use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task, State};
 use crate::error::{DatalakeError, DetailedError};
-use crate::DatalakeError::{ApiError, AuthenticationError, ParseError, TimeoutError};
+use crate::DatalakeError::{ApiError, AuthenticationError, TimeoutError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";
@@ -128,8 +128,13 @@ impl Datalake {
             } else {
                 let body = match csv.split_once('\n') {
                     None => {
-                        // TODO test
-                        return Err(ParseError(DetailedError::new(format!("Unexpected csv result: {csv}"))))
+                        let detailed_error = DetailedError {
+                            summary: "unexpected csv result, missing body".to_string(),
+                            api_url: None,
+                            api_response: Some(csv.to_string()),
+                            api_status_code: None,
+                        };
+                        return Err(ApiError(detailed_error))
                     }
                     Some((_header, body)) => { body }
                 };
