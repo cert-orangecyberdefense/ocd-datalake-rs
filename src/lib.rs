@@ -151,7 +151,6 @@ impl Datalake {
 
     /// Bulk lookup a chunk of atom_values
      fn bulk_lookup_chunk(&mut self, atom_values: &[String]) -> Result<String, DatalakeError> {
-        let url = self.settings.routes().bulk_lookup.clone();
          // Construct the body by identifying the atom types
         let extracted = self.extract_atom_type(atom_values)?;
         let mut body = Map::new();
@@ -168,7 +167,7 @@ impl Datalake {
             };
         }
 
-        let request = self.client.post(&url)
+        let request = self.client.post(&self.settings.routes().bulk_lookup)
             .header("Authorization", self.get_token()?)
             .header("Accept", "text/csv");
         let csv_resp = request.json(&body).send()?.text()?;
