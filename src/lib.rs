@@ -11,7 +11,7 @@ use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
 use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task, State};
 use crate::error::{DatalakeError, DetailedError};
-use crate::DatalakeError::{ApiError, AuthenticationError, TimeoutError};
+use crate::DatalakeError::{ApiError, AuthenticationError, ParseError, TimeoutError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";
@@ -119,12 +119,30 @@ impl Datalake {
     /// Return a CSV of the bulk lookup for given threats
     ///
     /// Threats have their atom type automatically defined (with hash meaning a File type)
-    /// > **Warning** Above a hundred values, the API might reject the request
-    /// > TODO implement the logic behind the scene by looping over chunk of the provided values
     pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> Result<String, DatalakeError> {
-        let url = self.settings.routes().bulk_lookup.clone();
+        let mut csv_merged = String::new();
+        for chunk in atom_values.chunks(self.settings.bulk_lookup_chunk_size as usize) {
+            let csv: String = self.bulk_lookup_chunk(chunk)?;
+            if csv_merged.is_empty() {
+                csv_merged = csv;
+            } else {
+                let body = match csv.split_once("\n") {
+                    None => {
+                        // TODO test
+                        return Err(ParseError(DetailedError::new(format!("Unexpected csv result: {csv}"))))
+                    }
+                    Some((_header, body)) => { body }
+                };
+                csv_merged = format!("{csv_merged}{body}");
+            }
+        }
+        Ok(csv_merged)
+    }
 
-        // Construct the body by identifying the atom types
+    /// Bulk lookup a chunk of atom_values
+     fn bulk_lookup_chunk(&mut self, atom_values: &[String]) -> Result<String, DatalakeError> {
+        let url = self.settings.routes().bulk_lookup.clone();
+         // Construct the body by identifying the atom types
         let extracted = self.extract_atom_type(&atom_values)?;
         let mut body = Map::new();
         body.insert("hashkey_only".to_string(), Value::Bool(false));
@@ -145,7 +163,7 @@ impl Datalake {
             .header("Accept", "text/csv");
         let csv_resp = request.json(&body).send()?.text()?;
         Ok(csv_resp)
-    }
+     }
 
     /// Retrieve all the results of a query using its query_hash.
     ///

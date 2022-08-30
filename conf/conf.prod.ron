@@ -9,6 +9,7 @@
             bulk_search_task: "{base_url}/mrti/bulk-search/tasks/",
             bulk_search_download: "{base_url}/mrti/bulk-search/task/{task_uuid}",
         ),
+        bulk_lookup_chunk_size: 100,
         bulk_search_retry_interval_sec: 10,  // check bulk search status every 10 seconds
         bulk_search_timeout_sec: 3600,  // timeout after one hour
     )
