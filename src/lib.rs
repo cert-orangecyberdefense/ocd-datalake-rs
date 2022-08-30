@@ -140,6 +140,9 @@ impl Datalake {
                 };
                 csv_merged = format!("{csv_merged}{body}");
             }
+            if !csv_merged.ends_with('\n') {
+                csv_merged.push('\n');  // It's easier to merge csv if they always finish with a new line
+            }
         }
         Ok(csv_merged)
     }

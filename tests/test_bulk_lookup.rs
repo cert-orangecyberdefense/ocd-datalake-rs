@@ -209,8 +209,11 @@ mod tests {
         let atom_values = vec![
             "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e",
             "jeithe7eijeefohch3qu.probes.site",
-            "ef3363dfe2515b826584ab53c4bb7812",
+            "ef3363dfe2515b826584ab53c4bb7812",  // <- end of first chunk
             "probes.site",
+            "probes2.site",
+            "probes3.site", // <- end of second chunk
+            "probes4.site",  // <- third chunk
         ];
         let atom_values_string: Vec<String> = atom_values.iter().map(|x| x.to_string()).collect();
 
@@ -239,7 +242,7 @@ mod tests {
             .create();
         let extract_mock_2 = mock("POST", "/mrti/threats/atom-values-extract/")
             .match_body(Json(json!({
-                "content":"probes.site"
+                "content":"probes.site probes2.site probes3.site"
             })))
             .with_status(200)
             .with_body(json!({
@@ -248,15 +251,29 @@ mod tests {
                 "results": {
                     "domain": [
                         "probes.site",
+                        "probes2.site",
+                        "probes3.site",
                     ],
                 }
             }).to_string())
             .create();
-        let csv_body_1 = r#"hashkey,atom_type,search_phrase,atom_value,atom_value_best_matching,threat_found,access_permission,events_number,first_seen,last_updated,last_updated_by_source,threat_types,ddos.score.risk,fraud.score.risk,hack.score.risk,leak.score.risk,malware.score.risk,phishing.score.risk,scam.score.risk,scan.score.risk,spam.score.risk
-000001a049b612930338a3ff293967d6,file,620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e,620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e,620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e,True,True,7,2021-11-16T03:39:56Z,2022-08-05T08:37:26Z,2022-08-01T08:37:25Z,,1,1,1,1,5,8,,,
-570c18ccf35a7003789f4332cb63bfce,fqdn,jeithe7eijeefohch3qu.probes.site,jeithe7eijeefohch3qu.probes.site,jeithe7eijeefohch3qu.probes.site,True,True,11,2020-11-25T21:11:41Z,2021-05-09T05:53:40Z,,,,,12,,13,12,,,
-736e1acf892a27598d65a52136122699,,ef3363dfe2515b826584ab53c4bb7812,ef3363dfe2515b826584ab53c4bb7812,,False,False,,,,,,,,,,,,,,
-"#;
+        let extract_mock_3 = mock("POST", "/mrti/threats/atom-values-extract/")
+            .match_body(Json(json!({
+                "content":"probes4.site"
+            })))
+            .with_status(200)
+            .with_body(json!({
+                "found": 1,
+                "not_found": [],
+                "results": {
+                    "domain": [
+                        "probes4.site",
+                    ],
+                }
+            }).to_string())
+            .create();
+        let csv_body_1 = "hashkey,atom_type\n000001a049b612930338a3ff293967d6,file\n\
+        570c18ccf35a7003789f4332cb63bfce,fqdn\n736e1acf892a27598d65a52136122699,\n";
         let lookup_mock_1 = mock("POST", "/mrti/threats/bulk-lookup/")
             .match_body(Json(json!({
                     "hashkey_only": false,
@@ -273,18 +290,32 @@ mod tests {
             .with_body(csv_body_1)
             .create();
 
-        let csv_content_2 = r#"e091b7c76d28a484ff658fb4701dca66,domain,probes.site,probes.site,probes.site,True,True,11,2020-11-25T21:11:41Z,2021-04-23T05:53:40Z,,,,,20,,15,20,,,,"otx_alienvault (notify),otx_alienvault_outgoing",tlp:white (2),,https://ti.extranet.mrti-center.com/api/v2/mrti/threats/e091b7c76d28a484ff658fb4701dca66/graph/,https://ti.extranet.mrti-center.com/api/v2/mrti/threats-history/e091b7c76d28a484ff658fb4701dca66/,https://ti.extranet.mrti-center.com/api/v2/mrti/threats/e091b7c76d28a484ff658fb4701dca66/,https://ti.extranet.mrti-center.com/gui/threat/e091b7c76d28a484ff658fb4701dca66"#;
-        let csv_header_2 = r#"hashkey,atom_type,search_phrase,atom_value,atom_value_best_matching,threat_found,access_permission,events_number,first_seen,last_updated,last_updated_by_source,threat_types,ddos.score.risk,fraud.score.risk,hack.score.risk,leak.score.risk,malware.score.risk,phishing.score.risk,scam.score.risk,scan.score.risk,spam.score.risk,sources,tags,subcategories,href_graph,href_history,href_threat,href_threat_webGUI"#;
+        let csv_content_2 = "csv_content_2";
+        let csv_header = r#"hashkey,atom_type,search_phrase,atom_value,atom_value_best_matching,threat_found,access_permission,events_number,first_seen,last_updated,last_updated_by_source,threat_types,ddos.score.risk,fraud.score.risk,hack.score.risk,leak.score.risk,malware.score.risk,phishing.score.risk,scam.score.risk,scan.score.risk,spam.score.risk,sources,tags,subcategories,href_graph,href_history,href_threat,href_threat_webGUI"#;
         let lookup_mock_2 = mock("POST", "/mrti/threats/bulk-lookup/")
             .match_body(Json(json!({
                     "hashkey_only": false,
                     "domain": [
                         "probes.site",
+                        "probes2.site",
+                        "probes3.site",
                     ]
                 }))
             )
             .with_status(200)
-            .with_body(&[csv_header_2, csv_content_2].join("\n"))
+            .with_body(&[csv_header, csv_content_2].join("\n"))
+            .create();
+        let csv_content_3 = "csv_content_3";
+        let lookup_mock_3 = mock("POST", "/mrti/threats/bulk-lookup/")
+            .match_body(Json(json!({
+                    "hashkey_only": false,
+                    "domain": [
+                        "probes4.site",
+                    ]
+                }))
+            )
+            .with_status(200)
+            .with_body(&[csv_header, csv_content_3].join("\n"))
             .create();
 
         let lookup_result = custom_dtl.bulk_lookup(atom_values_string).unwrap();
@@ -294,8 +325,18 @@ mod tests {
         lookup_mock_1.assert();
         extract_mock_2.assert();
         lookup_mock_2.assert();
+        extract_mock_3.assert();
+        lookup_mock_3.assert();
 
-        let combined_csv = format!("{csv_body_1}{csv_content_2}");  // csv_body_1 end with a line return reused here
+        let combined_csv = [
+            "hashkey,atom_type",
+            "000001a049b612930338a3ff293967d6,file",
+            "570c18ccf35a7003789f4332cb63bfce,fqdn",
+            "736e1acf892a27598d65a52136122699,",
+            "csv_content_2",
+            "csv_content_3",
+            "",  // Make sure a new line is inserted at the end
+        ].join("\n");
         assert_eq!(lookup_result, combined_csv);
     }
 
