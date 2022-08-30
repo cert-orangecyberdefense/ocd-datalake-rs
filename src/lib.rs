@@ -121,12 +121,12 @@ impl Datalake {
     /// Threats have their atom type automatically defined (with hash meaning a File type)
     pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> Result<String, DatalakeError> {
         let mut csv_merged = String::new();
-        for chunk in atom_values.chunks(self.settings.bulk_lookup_chunk_size as usize) {
+        for chunk in atom_values.chunks(self.settings.bulk_lookup_chunk_size) {
             let csv: String = self.bulk_lookup_chunk(chunk)?;
             if csv_merged.is_empty() {
                 csv_merged = csv;
             } else {
-                let body = match csv.split_once("\n") {
+                let body = match csv.split_once('\n') {
                     None => {
                         // TODO test
                         return Err(ParseError(DetailedError::new(format!("Unexpected csv result: {csv}"))))
@@ -143,7 +143,7 @@ impl Datalake {
      fn bulk_lookup_chunk(&mut self, atom_values: &[String]) -> Result<String, DatalakeError> {
         let url = self.settings.routes().bulk_lookup.clone();
          // Construct the body by identifying the atom types
-        let extracted = self.extract_atom_type(&atom_values)?;
+        let extracted = self.extract_atom_type(atom_values)?;
         let mut body = Map::new();
         body.insert("hashkey_only".to_string(), Value::Bool(false));
         for (atom_value, atom_type) in extracted {
