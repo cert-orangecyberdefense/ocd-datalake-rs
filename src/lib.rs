@@ -119,13 +119,40 @@ impl Datalake {
     /// Return a CSV of the bulk lookup for given threats
     ///
     /// Threats have their atom type automatically defined (with hash meaning a File type)
-    /// > **Warning** Above a hundred values, the API might reject the request
-    /// > TODO implement the logic behind the scene by looping over chunk of the provided values
     pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> Result<String, DatalakeError> {
-        let url = self.settings.routes().bulk_lookup.clone();
+        let mut csv_merged = String::new();
+        for chunk in atom_values.chunks(self.settings.bulk_lookup_chunk_size) {
+            let csv: String = self.bulk_lookup_chunk(chunk)?;
+            if csv_merged.is_empty() {
+                csv_merged = csv;
+            } else {
+                let body = match csv.split_once('\n') {
+                    Some((_header, body)) => body,
+                    None => return Err(Self::csv_without_new_line_error(csv)),
+                };
+                csv_merged = format!("{csv_merged}{body}");
+            }
+            if !csv_merged.ends_with('\n') {
+                csv_merged.push('\n');  // It's easier to merge csv if they always finish with a new line
+            }
+        }
+        Ok(csv_merged)
+    }
 
-        // Construct the body by identifying the atom types
-        let extracted = self.extract_atom_type(&atom_values)?;
+    fn csv_without_new_line_error(csv: String) -> DatalakeError {
+        let detailed_error = DetailedError {
+            summary: "unexpected csv result, missing body".to_string(),
+            api_url: None,
+            api_response: Some(csv),
+            api_status_code: None,
+        };
+        ApiError(detailed_error)
+    }
+
+    /// Bulk lookup a chunk of atom_values
+     fn bulk_lookup_chunk(&mut self, atom_values: &[String]) -> Result<String, DatalakeError> {
+         // Construct the body by identifying the atom types
+        let extracted = self.extract_atom_type(atom_values)?;
         let mut body = Map::new();
         body.insert("hashkey_only".to_string(), Value::Bool(false));
         for (atom_value, atom_type) in extracted {
@@ -140,12 +167,12 @@ impl Datalake {
             };
         }
 
-        let request = self.client.post(&url)
+        let request = self.client.post(&self.settings.routes().bulk_lookup)
             .header("Authorization", self.get_token()?)
             .header("Accept", "text/csv");
         let csv_resp = request.json(&body).send()?.text()?;
         Ok(csv_resp)
-    }
+     }
 
     /// Retrieve all the results of a query using its query_hash.
     ///
