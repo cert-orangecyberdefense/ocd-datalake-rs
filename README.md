@@ -13,7 +13,7 @@ Check [open issues](https://github.com/cert-orangecyberdefense/ocd-datalake-rs/i
 put in Cargo.toml:
 ```
 [dependencies]
-ocd_datalake_rs = "0.1.0"
+ocd_datalake_rs = "0.1.1"
 ```
 
 ## Usage
