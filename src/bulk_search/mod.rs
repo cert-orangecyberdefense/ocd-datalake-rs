@@ -5,6 +5,7 @@ use strum_macros::{EnumString, Display};
 use std::str::FromStr;
 use std::time::Duration;
 
+const BULK_SEARCH_DOWNLOAD_TIMEOUT: u64 = 3600;
 type TaskUuid = String;
 
 #[allow(non_camel_case_types)]
@@ -118,7 +119,7 @@ pub fn get_bulk_search_task(dtl: &mut Datalake, uuid: TaskUuid) -> Result<BulkSe
 pub fn download_bulk_search(dtl: &mut Datalake, uuid: TaskUuid) -> Result<String, DatalakeError> {
     let url = dtl.settings.routes().bulk_search_download.replace("{task_uuid}", &uuid);
     let request = dtl.client.get(&url)
-        .timeout(Duration::from_secs(3600))
+        .timeout(Duration::from_secs(BULK_SEARCH_DOWNLOAD_TIMEOUT))
         .header("Authorization", dtl.get_token()?)
         .header("Accept", "text/csv");
     let resp = request.send()?;
