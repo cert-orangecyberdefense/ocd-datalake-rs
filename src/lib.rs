@@ -17,12 +17,18 @@ pub use crate::setting::{DatalakeSetting, RoutesSetting};
 pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";
 
 #[derive(Clone, Debug)]
+struct Tokens {  // Tokens are saved with the "Token " prefix
+    access: String,
+    refresh: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct Datalake {
     settings: DatalakeSetting,
     username: String,
     password: String,
     client: Client,
-    access_token: Option<String>,
+    tokens: Option<Tokens>,
 }
 
 impl Datalake {
@@ -32,13 +38,10 @@ impl Datalake {
             username,
             password,
             client: Client::new(),
-            access_token: None,
+            tokens: None,
         }
     }
-    // TODO handle expired access / refresh token
-    fn retrieve_api_token(&self) -> Result<String, DatalakeError> {
-        let mut token = "Token ".to_string();
-
+    fn retrieve_api_tokens(&self) -> Result<Tokens, DatalakeError> {
         let url = &self.settings.routes().authentication;
         let auth_request = self.client.post(url);
         let mut json_body = HashMap::new();
@@ -47,8 +50,50 @@ impl Datalake {
         let resp = auth_request.json(&json_body).send()?;
         let status_code = resp.status();
         let json_resp = resp.json::<Value>()?;
-        let raw_token = json_resp["access_token"].as_str();
-        let op_token = match raw_token {
+        let raw_access_token = json_resp["access_token"].as_str();
+        let raw_refresh_token = json_resp["refresh_token"].as_str();
+        if raw_access_token.is_none() || raw_refresh_token.is_none() {
+            let err = DetailedError {
+                summary: "Invalid credentials".to_string(),
+                api_url: Some(url.to_string()),
+                api_response: Some(json_resp.to_string()),
+                api_status_code: Some(status_code),
+            };
+            return Err(AuthenticationError(err));
+        }  // Else access and refresh token are guaranteed to be there
+        let access_token =  format!("Token {}", raw_access_token.unwrap());
+        let refresh_token =  format!("Token {}", raw_refresh_token.unwrap());
+
+        Ok(Tokens {
+            access: access_token,
+            refresh: refresh_token,
+        })
+    }
+
+    /// Cached version of retrieve_api_token that return a new token only if needed
+    pub fn get_access_token(&mut self) -> Result<String, DatalakeError> {
+        if self.tokens.is_none() {
+            self.tokens = Some(self.retrieve_api_tokens()?);
+        }
+        let access_token = self.tokens.as_ref().unwrap().clone().access;
+        Ok(access_token)
+    }
+
+    fn refresh_tokens(&self) -> Result<Tokens, DatalakeError> {
+        // TODO call retrieve_api_token if the refresh token is also expired
+        let url = &self.settings.routes().refresh_token;
+        let tokens = &self.tokens;
+        if tokens.is_none() {
+            panic!("Error logic, cannot refresh a token not set")  // TODO replace with DetailedError ? (or get_tokens ) ?
+        }
+        let refresh_token = tokens.as_ref().unwrap().clone().refresh;
+        let request = self.client.post(url)
+            .header("Authorization", refresh_token.clone());
+
+        let resp = request.send()?;
+        let status_code = resp.status();
+        let json_resp = resp.json::<Value>()?;
+        let access_token = match json_resp["access_token"].as_str() {
             None => {
                 let err = DetailedError {
                     summary: "Invalid credentials".to_string(),
@@ -58,26 +103,20 @@ impl Datalake {
                 };
                 return Err(AuthenticationError(err));
             }
-            Some(op_token) => { op_token }
+            Some(raw_access_token) => format!("Token {}", raw_access_token)
         };
-        token.push_str(op_token);
-        Ok(token)
-    }
 
-    /// Cached version of retrieve_api_token that return a new token only if needed
-    pub fn get_token(&mut self) -> Result<String, DatalakeError> {
-        if self.access_token.is_none() {
-            self.access_token = Some(self.retrieve_api_token()?);
-        }
-        let token = self.access_token.as_ref().unwrap().clone();
-        Ok(token)
+        Ok(Tokens {
+            access: access_token,
+            refresh: refresh_token,
+        })
     }
 
     /// Return the atom types based on the given atom_values
     pub fn extract_atom_type(&mut self, atom_values: &[String]) -> Result<BTreeMap<String, String>, DatalakeError> {
         let url = self.settings.routes().atom_values_extract.clone();
         let mut request = self.client.post(&url);
-        request = request.header("Authorization", self.get_token()?);
+        request = request.header("Authorization", self.get_access_token()?);
         let mut joined_atom_values = String::from(&atom_values[0]);
         for value in atom_values.iter().skip(1) {
             joined_atom_values.push(' ');
@@ -88,6 +127,10 @@ impl Datalake {
         });
         let resp = request.json(&json_body).send()?;
         let status_code = resp.status();
+        if status_code == 401 {
+            self.tokens = Some(self.refresh_tokens()?);
+            return self.extract_atom_type(atom_values);  // TODO this is super duper dangerous
+        }
         let json_resp = resp.json::<Value>()?;
         let extracted_atom_types = Self::parse_extract_atom_type_result(&json_resp);
         if let Some(extracted) = extracted_atom_types {
@@ -168,7 +211,7 @@ impl Datalake {
         }
 
         let request = self.client.post(&self.settings.routes().bulk_lookup)
-            .header("Authorization", self.get_token()?)
+            .header("Authorization", self.get_access_token()?)
             .header("Accept", "text/csv");
         let csv_resp = request.json(&body).send()?.text()?;
         Ok(csv_resp)

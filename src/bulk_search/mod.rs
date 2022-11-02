@@ -54,7 +54,7 @@ pub fn create_bulk_search_task(dtl: &mut Datalake, query_hash: String, query_fie
     body.insert("query_fields".to_string(), query_fields_serialized);
 
     let request = dtl.client.post(&url)
-        .header("Authorization", dtl.get_token()?)
+        .header("Authorization", dtl.get_access_token()?)
         .header("Accept", "text/csv");
     let resp = request.json(&body).send()?;
     let status_code = resp.status();
@@ -85,7 +85,7 @@ pub fn get_bulk_search_task(dtl: &mut Datalake, uuid: TaskUuid) -> Result<BulkSe
     body.insert("task_uuid".to_string(), Value::String(uuid));
 
     let request = dtl.client.post(&url)
-        .header("Authorization", dtl.get_token()?)
+        .header("Authorization", dtl.get_access_token()?)
         .header("Accept", "application/json");
     let resp = request.json(&body).send()?;
 
@@ -120,7 +120,7 @@ pub fn download_bulk_search(dtl: &mut Datalake, uuid: TaskUuid) -> Result<String
     let url = dtl.settings.routes().bulk_search_download.replace("{task_uuid}", &uuid);
     let request = dtl.client.get(&url)
         .timeout(Duration::from_secs(BULK_SEARCH_DOWNLOAD_TIMEOUT))
-        .header("Authorization", dtl.get_token()?)
+        .header("Authorization", dtl.get_access_token()?)
         .header("Accept", "text/csv");
     let resp = request.send()?;
     let status_code = resp.status();

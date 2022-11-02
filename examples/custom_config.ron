@@ -3,6 +3,7 @@
         base_url: "https://custom_host",
         routes: RoutesSetting(
             authentication: "{base_url}/auth/token/",
+            refresh_token: "{base_url}/auth/refresh-token/",
             atom_values_extract: "{base_url}/mrti/threats/atom-values-extract/",
             bulk_lookup: "value not tested !",
             bulk_search: "value not tested !",

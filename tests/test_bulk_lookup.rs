@@ -462,7 +462,7 @@ mod tests {
             .with_status(200)
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
-        let api_status_code: u16 = 401;
+        let api_status_code: u16 = 429;
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
             .with_status(api_status_code as usize)
             .with_body(api_response)
