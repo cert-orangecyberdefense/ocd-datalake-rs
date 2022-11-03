@@ -7,11 +7,13 @@ pub mod bulk_search;
 use std::collections::{BTreeMap, HashMap};
 use std::thread;
 use std::time::{Duration, Instant};
-use reqwest::blocking::Client;
+use reqwest::blocking::{Client, RequestBuilder, Response};
+use reqwest::header::AUTHORIZATION;
 use serde_json::{json, Map, Value};
 use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task, State};
 use crate::error::{DatalakeError, DetailedError};
 use crate::DatalakeError::{ApiError, AuthenticationError, TimeoutError};
+use crate::error::DatalakeError::UnexpectedLibError;
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";
@@ -61,8 +63,8 @@ impl Datalake {
             };
             return Err(AuthenticationError(err));
         }  // Else access and refresh token are guaranteed to be there
-        let access_token =  format!("Token {}", raw_access_token.unwrap());
-        let refresh_token =  format!("Token {}", raw_refresh_token.unwrap());
+        let access_token = format!("Token {}", raw_access_token.unwrap());
+        let refresh_token = format!("Token {}", raw_refresh_token.unwrap());
 
         Ok(Tokens {
             access: access_token,
@@ -116,7 +118,6 @@ impl Datalake {
     pub fn extract_atom_type(&mut self, atom_values: &[String]) -> Result<BTreeMap<String, String>, DatalakeError> {
         let url = self.settings.routes().atom_values_extract.clone();
         let mut request = self.client.post(&url);
-        request = request.header("Authorization", self.get_access_token()?);
         let mut joined_atom_values = String::from(&atom_values[0]);
         for value in atom_values.iter().skip(1) {
             joined_atom_values.push(' ');
@@ -125,12 +126,9 @@ impl Datalake {
         let json_body = json!({
             "content": joined_atom_values,
         });
-        let resp = request.json(&json_body).send()?;
+        request = request.json(&json_body);
+        let resp = self.run_with_authorization_token(&request)?;
         let status_code = resp.status();
-        if status_code == 401 {
-            self.tokens = Some(self.refresh_tokens()?);
-            return self.extract_atom_type(atom_values);  // TODO this is super duper dangerous
-        }
         let json_resp = resp.json::<Value>()?;
         let extracted_atom_types = Self::parse_extract_atom_type_result(&json_resp);
         if let Some(extracted) = extracted_atom_types {
@@ -143,6 +141,41 @@ impl Datalake {
                 api_status_code: Some(status_code),
             };
             Err(ApiError(err))
+        }
+    }
+
+    /// Run a request by injecting authorization token. Automatically retry once if the token is expired
+    fn run_with_authorization_token(&mut self, request: &RequestBuilder) -> Result<Response, DatalakeError> {
+        let mut cloned_request = match request.try_clone() {
+            Some(r) => r,
+            None => return Err(UnexpectedLibError(DetailedError::new("Can't clone given request".to_string())))
+        };
+        cloned_request = cloned_request.header(AUTHORIZATION, self.get_access_token()?);
+        let mut response = cloned_request.send()?;
+        let mut status_code = response.status();
+        if status_code != 401 {
+            return Ok(response);
+        }
+
+        // Else retry
+        self.tokens = Some(self.refresh_tokens()?);
+        let refreshed_token = self.get_access_token()?;
+        let mut retry_request = match request.try_clone() {
+            Some(r) => r,
+            None => return Err(UnexpectedLibError(DetailedError::new("Can't clone given request".to_string())))
+        };
+        retry_request = retry_request.header(AUTHORIZATION, refreshed_token);
+        response = retry_request.send()?;
+        status_code = response.status();
+        if status_code == 401 {
+            Err(AuthenticationError(DetailedError {
+                summary: "401 response despite refreshed token".to_string(),
+                api_url: Some(response.url().to_string()),
+                api_response: response.text().ok(),
+                api_status_code: Some(status_code),
+            }))
+        } else {
+            Ok(response)  // Refreshing the token was enough to yield a correct response
         }
     }
 
@@ -193,8 +226,8 @@ impl Datalake {
     }
 
     /// Bulk lookup a chunk of atom_values
-     fn bulk_lookup_chunk(&mut self, atom_values: &[String]) -> Result<String, DatalakeError> {
-         // Construct the body by identifying the atom types
+    fn bulk_lookup_chunk(&mut self, atom_values: &[String]) -> Result<String, DatalakeError> {
+        // Construct the body by identifying the atom types
         let extracted = self.extract_atom_type(atom_values)?;
         let mut body = Map::new();
         body.insert("hashkey_only".to_string(), Value::Bool(false));
@@ -211,11 +244,11 @@ impl Datalake {
         }
 
         let request = self.client.post(&self.settings.routes().bulk_lookup)
-            .header("Authorization", self.get_access_token()?)
-            .header("Accept", "text/csv");
-        let csv_resp = request.json(&body).send()?.text()?;
+            .header("Accept", "text/csv")
+            .json(&body);
+        let csv_resp = self.run_with_authorization_token(&request)?.text()?;
         Ok(csv_resp)
-     }
+    }
 
     /// Retrieve all the results of a query using its query_hash.
     ///
@@ -250,6 +283,8 @@ impl Datalake {
 #[cfg(test)]
 mod tests {
     use crate::{Datalake, DatalakeSetting};
+    use crate::error::DatalakeError::UnexpectedLibError;
+    use crate::error::DetailedError;
 
     #[test]
     fn test_create_datalake_with_prod_config() {
@@ -273,5 +308,22 @@ mod tests {
         );
 
         assert_eq!(dtl.settings.routes().authentication, "https://ti.extranet.mrti-center.com/api/v2/auth/token/");
+    }
+
+    #[test]
+    fn test_run_with_authorization_token_fail_on_unclonable_request() {
+        let preprod_setting = DatalakeSetting::preprod();
+        let mut dtl = Datalake::new(
+            "username".to_string(),
+            "password".to_string(),
+            preprod_setting,
+        );
+        // Create a random request
+        let mut request = dtl.client.post(&dtl.settings.routes().authentication);
+        // Set a streaming body that can't be cloned
+        request = request.body(reqwest::blocking::Body::new(std::io::empty()));
+        let err =  dtl.run_with_authorization_token(&request).err().unwrap();
+        let expected_error_message = "Can't clone given request".to_string();
+        assert_eq!(err, UnexpectedLibError(DetailedError::new(expected_error_message)));
     }
 }
