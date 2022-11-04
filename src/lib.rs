@@ -82,11 +82,11 @@ impl Datalake {
     }
 
     fn refresh_tokens(&self) -> Result<Tokens, DatalakeError> {
-        // TODO call retrieve_api_token if the refresh token is also expired
         let url = &self.settings.routes().refresh_token;
         let tokens = &self.tokens;
         if tokens.is_none() {
-            panic!("Error logic, cannot refresh a token not set")  // TODO replace with DetailedError ? (or get_tokens ) ?
+            let error_message = "Refresh tokens called despite no token set".to_string();
+            return Err(UnexpectedLibError(DetailedError::new(error_message)));
         }
         let refresh_token = tokens.as_ref().unwrap().clone().refresh;
         let request = self.client.post(url)
@@ -94,6 +94,10 @@ impl Datalake {
 
         let resp = request.send()?;
         let status_code = resp.status();
+        if status_code == 401 {
+            // Refresh token is also expired, reauth from the start
+            return self.retrieve_api_tokens();
+        }
         let json_resp = resp.json::<Value>()?;
         let access_token = match json_resp["access_token"].as_str() {
             None => {
@@ -324,6 +328,19 @@ mod tests {
         request = request.body(reqwest::blocking::Body::new(std::io::empty()));
         let err =  dtl.run_with_authorization_token(&request).err().unwrap();
         let expected_error_message = "Can't clone given request".to_string();
+        assert_eq!(err, UnexpectedLibError(DetailedError::new(expected_error_message)));
+    }
+
+    #[test]
+    fn test_refresh_tokens_with_no_existing_tokens() {
+        let preprod_setting = DatalakeSetting::preprod();
+        let dtl = Datalake::new(
+            "username".to_string(),
+            "password".to_string(),
+            preprod_setting,
+        );
+        let err =  dtl.refresh_tokens().err().unwrap();
+        let expected_error_message = "Refresh tokens called despite no token set".to_string();
         assert_eq!(err, UnexpectedLibError(DetailedError::new(expected_error_message)));
     }
 }
