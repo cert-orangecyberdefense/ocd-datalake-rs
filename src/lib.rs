@@ -7,6 +7,7 @@ pub mod bulk_search;
 use std::collections::{BTreeMap, HashMap};
 use std::thread;
 use std::time::{Duration, Instant};
+use log::info;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use reqwest::header::AUTHORIZATION;
 use serde_json::{json, Map, Value};
@@ -81,21 +82,23 @@ impl Datalake {
         Ok(access_token)
     }
 
+    /// Return valid tokens, first by using the refresh token, then by using user credentials
     fn refresh_tokens(&self) -> Result<Tokens, DatalakeError> {
+        info!("Refreshing the access token");
         let url = &self.settings.routes().refresh_token;
-        let tokens = &self.tokens;
-        if tokens.is_none() {
+        let refresh_token = if let Some(tokens) = &self.tokens {
+            tokens.clone().refresh
+        } else {
             let error_message = "Refresh tokens called despite no token set".to_string();
             return Err(UnexpectedLibError(DetailedError::new(error_message)));
-        }
-        let refresh_token = tokens.as_ref().unwrap().clone().refresh;
+        };
         let request = self.client.post(url)
             .header("Authorization", refresh_token.clone());
 
         let resp = request.send()?;
         let status_code = resp.status();
         if status_code == 401 {
-            // Refresh token is also expired, reauth from the start
+            info!("Refresh token is expired, authenticating from the start");
             return self.retrieve_api_tokens();
         }
         let json_resp = resp.json::<Value>()?;
@@ -150,9 +153,8 @@ impl Datalake {
 
     /// Run a request by injecting authorization token. Automatically retry once if the token is expired
     fn run_with_authorization_token(&mut self, request: &RequestBuilder) -> Result<Response, DatalakeError> {
-        let mut cloned_request = match request.try_clone() {
-            Some(r) => r,
-            None => return Err(UnexpectedLibError(DetailedError::new("Can't clone given request".to_string())))
+        let Some(mut cloned_request) = request.try_clone() else {
+            return Err(UnexpectedLibError(DetailedError::new("Can't clone given request".to_string())))
         };
         cloned_request = cloned_request.header(AUTHORIZATION, self.get_access_token()?);
         let mut response = cloned_request.send()?;
@@ -164,9 +166,8 @@ impl Datalake {
         // Else retry
         self.tokens = Some(self.refresh_tokens()?);
         let refreshed_token = self.get_access_token()?;
-        let mut retry_request = match request.try_clone() {
-            Some(r) => r,
-            None => return Err(UnexpectedLibError(DetailedError::new("Can't clone given request".to_string())))
+        let Some(mut retry_request) = request.try_clone() else {
+            return Err(UnexpectedLibError(DetailedError::new("Can't clone given request".to_string())))
         };
         retry_request = retry_request.header(AUTHORIZATION, refreshed_token);
         response = retry_request.send()?;

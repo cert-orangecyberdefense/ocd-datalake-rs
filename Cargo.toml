@@ -18,6 +18,7 @@ serde_json = "1.0.48"
 config = "0.13.1"
 strum = "0.24"
 strum_macros = "0.24"
+log = "0.4"
 
 [dev-dependencies]
 mockito = "0.31.0"
