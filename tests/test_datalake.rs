@@ -24,7 +24,7 @@ mod tests {
             .create();
         let mut dtl = common::create_datalake();
 
-        let token = dtl.get_token();
+        let token = dtl.get_access_token();
 
         assert_eq!(token.unwrap(), "Token 123".to_string());
         token_mock.assert();
@@ -43,7 +43,7 @@ mod tests {
             DatalakeSetting::new(contents.as_str()),
         );
 
-        let err = dtl.get_token().err().unwrap();
+        let err = dtl.get_access_token().err().unwrap();
         assert_eq!(err.to_string(), "HTTP Error Could not fetch API for url https://custom_host/auth/token/");
     }
 
@@ -55,7 +55,7 @@ mod tests {
             .create();
         let mut dtl = common::create_datalake();
 
-        let err = dtl.get_token().err().unwrap();
+        let err = dtl.get_access_token().err().unwrap();
         assert_eq!(err.to_string(), "Parse Error error decoding response body: trailing characters at line 1 column 5");
         token_mock.assert();
     }
@@ -70,7 +70,7 @@ mod tests {
             .create();
         let mut dtl = common::create_datalake();
 
-        let err = dtl.get_token().err().unwrap();
+        let err = dtl.get_access_token().err().unwrap();
         assert_eq!(err.to_string(), "Authentication Error Invalid credentials");
         if let AuthenticationError(detailed_err) = err {
             assert_eq!(detailed_err.api_response.unwrap(), api_response);

@@ -9,7 +9,7 @@ fn main() {
         "password".to_string(),
         DatalakeSetting::new(contents.as_str()),
     );
-    let result = dtl.get_token();
+    let result = dtl.get_access_token();
     let err = result.expect_err("Error expected");
     println!("{}", err.to_string());  // print "HTTP Error Could not fetch API for url https://custom_host/auth/token/"
 }
