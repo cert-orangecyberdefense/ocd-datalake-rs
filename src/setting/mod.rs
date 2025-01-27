@@ -1,5 +1,5 @@
 const CONFIG_ENV_PREFIX: &str = "OCD_DTL_RS";
-const PREPROD_BASE_URL: &str = "https://ti.extranet.mrti-center.com/api/v2";
+const PREPROD_BASE_URL: &str = "https://ti2.extranet.mrti-center.com/api/v3";
 
 use config::FileFormat;
 use serde::Deserialize;
@@ -93,13 +93,13 @@ mod tests {
     fn test_create_datalake_with_prod_config() {
         let prod_setting = DatalakeSetting::prod();
 
-        assert_eq!(prod_setting.base_url, "https://datalake.cert.orangecyberdefense.com/api/v2");
+        assert_eq!(prod_setting.base_url, "https://datalake.cert.orangecyberdefense.com/api/v3");
     }
 
     #[test]
     fn test_preprod_config() {
         let preprod_setting = DatalakeSetting::preprod();
-        assert_eq!(preprod_setting.base_url, "https://ti.extranet.mrti-center.com/api/v2");
+        assert_eq!(preprod_setting.base_url, "https://ti2.extranet.mrti-center.com/api/v3");
     }
 
     #[test]

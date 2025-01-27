@@ -1,6 +1,6 @@
 (
     datalake_setting: DatalakeSetting(
-        base_url: "https://datalake.cert.orangecyberdefense.com/api/v2",
+        base_url: "https://datalake.cert.orangecyberdefense.com/api/v3",
         routes: RoutesSetting(
             authentication: "{base_url}/auth/token/",
             refresh_token: "{base_url}/auth/refresh-token/",

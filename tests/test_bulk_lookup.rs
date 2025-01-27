@@ -15,10 +15,11 @@ mod tests {
     fn test_extract_atom_type() {
         let token_mock = mock("POST", "/auth/token/")
             .with_status(200)
+            .with_header("content-type", "application/json")
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1"})))
+            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token 123")
             .with_status(200)
             .with_body(r#"{"found":2,"not_found":["1.1.1.1"],"results":{"domain":["domain.com"],"ip":["4.4.4.4"]}}"#)
@@ -27,7 +28,7 @@ mod tests {
         let atom_values = vec!["domain.com", "4.4.4.4", "1.1.1.1"];
         let atom_values_string: Vec<String> = atom_values.iter().map(|x| x.to_string()).collect();
 
-        let result = dtl.extract_atom_type(&atom_values_string).unwrap();
+        let result = dtl.extract_atom_type(&atom_values_string, "file").unwrap();
 
         // Check mock called happened
         token_mock.assert();
@@ -48,7 +49,7 @@ mod tests {
             .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
             .create();
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"123"})))
+            .match_body(Json(json!({"content":"123", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token 123")
             .with_status(200)
             .with_body(r#"{"found":0,"not_found":["123"],"results":{}}"#)
@@ -56,7 +57,7 @@ mod tests {
         let mut dtl = common::create_datalake();
         let atom_values = vec!["123".to_string()];
 
-        let result = dtl.extract_atom_type(&atom_values).unwrap();
+        let result = dtl.extract_atom_type(&atom_values, "file").unwrap();
 
         // Check mock called happened
         token_mock.assert();
@@ -73,7 +74,7 @@ mod tests {
             .create();
         let api_response = r#"{"messages":{"atom_type":["'wow' is not a valid choice. Valid values: 'apk',"]}}"#;
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"123"})))
+            .match_body(Json(json!({"content":"123", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token 123")
             .with_status(422)
             .with_body(api_response)
@@ -81,7 +82,7 @@ mod tests {
         let mut dtl = common::create_datalake();
         let atom_values = vec!["123".to_string()];
 
-        let err = dtl.extract_atom_type(&atom_values).err().unwrap();
+        let err = dtl.extract_atom_type(&atom_values, "file").err().unwrap();
         assert_eq!(
             err.to_string(),
             format!("API Error extracted API response not as expected"),
@@ -105,7 +106,7 @@ mod tests {
             .create();
         let api_response = r#"{"results":"API changed, results is now a string"}"#;
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"123"})))
+            .match_body(Json(json!({"content":"123", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token 123")
             .with_status(200)
             .with_body(api_response)
@@ -113,7 +114,7 @@ mod tests {
         let mut dtl = common::create_datalake();
         let atom_values = vec!["123".to_string()];
 
-        let err = dtl.extract_atom_type(&atom_values).err().unwrap();
+        let err = dtl.extract_atom_type(&atom_values, "file").err().unwrap();
         assert_eq!(
             err.to_string(),
             format!("API Error extracted API response not as expected"),
@@ -146,7 +147,8 @@ mod tests {
             .create();
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
             .match_body(Json(json!({
-                "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e ef3363dfe2515b826584ab53c4bb7812 jeithe7eijeefohch3qu.probes.site"
+                "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e ef3363dfe2515b826584ab53c4bb7812 jeithe7eijeefohch3qu.probes.site",
+                "treat_hashes_like": "file",
             })))
             .with_status(200)
             .with_body(json!({
@@ -185,7 +187,7 @@ mod tests {
             .create();
         let mut dtl = common::create_datalake();
 
-        let lookup_result = dtl.bulk_lookup(atom_values_string).unwrap();
+        let lookup_result = dtl.bulk_lookup(atom_values_string, "file").unwrap();
 
         token_mock.assert();
         extract_mock.assert();
@@ -223,7 +225,8 @@ mod tests {
             .create();
         let extract_mock_1 = mock("POST", "/mrti/threats/atom-values-extract/")
             .match_body(Json(json!({
-                "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e jeithe7eijeefohch3qu.probes.site ef3363dfe2515b826584ab53c4bb7812"
+                "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e jeithe7eijeefohch3qu.probes.site ef3363dfe2515b826584ab53c4bb7812",
+                "treat_hashes_like": "file",
             })))
             .with_status(200)
             .with_body(json!({
@@ -242,7 +245,8 @@ mod tests {
             .create();
         let extract_mock_2 = mock("POST", "/mrti/threats/atom-values-extract/")
             .match_body(Json(json!({
-                "content":"probes.site probes2.site probes3.site"
+                "content":"probes.site probes2.site probes3.site",
+                "treat_hashes_like": "file",
             })))
             .with_status(200)
             .with_body(json!({
@@ -259,7 +263,8 @@ mod tests {
             .create();
         let extract_mock_3 = mock("POST", "/mrti/threats/atom-values-extract/")
             .match_body(Json(json!({
-                "content":"probes4.site"
+                "content":"probes4.site",
+                "treat_hashes_like": "file",
             })))
             .with_status(200)
             .with_body(json!({
@@ -318,7 +323,7 @@ mod tests {
             .with_body(&[csv_header, csv_content_3].join("\n"))
             .create();
 
-        let lookup_result = custom_dtl.bulk_lookup(atom_values_string).unwrap();
+        let lookup_result = custom_dtl.bulk_lookup(atom_values_string, "file").unwrap();
 
         token_mock.assert();
         extract_mock_1.assert();
@@ -366,7 +371,8 @@ mod tests {
             .create();
         let extract_mock_1 = mock("POST", "/mrti/threats/atom-values-extract/")
             .match_body(Json(json!({
-                "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e jeithe7eijeefohch3qu.probes.site ef3363dfe2515b826584ab53c4bb7812"
+                "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e jeithe7eijeefohch3qu.probes.site ef3363dfe2515b826584ab53c4bb7812",
+                "treat_hashes_like": "file",
             })))
             .with_status(200)
             .with_body(json!({
@@ -385,7 +391,8 @@ mod tests {
             .create();
         let extract_mock_2 = mock("POST", "/mrti/threats/atom-values-extract/")
             .match_body(Json(json!({
-                "content":"probes.site"
+                "content":"probes.site",
+                "treat_hashes_like": "file",
             })))
             .with_status(200)
             .with_body(json!({
@@ -432,7 +439,7 @@ mod tests {
             .with_body(incorrect_csv_returned)
             .create();
 
-        let error = custom_dtl.bulk_lookup(atom_values_string).err().unwrap();
+        let error = custom_dtl.bulk_lookup(atom_values_string, "file").err().unwrap();
         assert_eq!(error.to_string(), "API Error unexpected csv result, missing body".to_string());
         match error {
             ApiError(details) => {
@@ -470,7 +477,7 @@ mod tests {
         let lookup_mock = mock("POST", "/mrti/threats/bulk-lookup/").create();
         let mut dtl = common::create_datalake();
 
-        let err = dtl.bulk_lookup(atom_values_string).err().unwrap();
+        let err = dtl.bulk_lookup(atom_values_string, "file").err().unwrap();
         assert_eq!(err.to_string(), format!("API Error extracted API response not as expected"));
         if let ApiError(detailed_err) = err {
             assert_eq!(detailed_err.api_response.unwrap(), api_response);
