@@ -17,6 +17,7 @@ fn main() {
     );
 
     let query_hash = "fbecd3d440a7d439a2a1fd996c703a8d".to_string();  // IPs updated the last day
+    // other examples : 685596bc5cbb5e8d7dc553157f26d3e1 (13 results), 3e20613adf80978e590bfdfafdb31aa1 (9971 results)
 
     let (sender, receiver) = mpsc::channel();
     let start_time = Instant::now();

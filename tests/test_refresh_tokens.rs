@@ -23,13 +23,13 @@ mod tests {
             .with_body(r#"{"access_token": "refreshed_access_token"}"#)
             .create();
         let extract_mock_on_expired_token = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1"})))
+            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token 123")
             .with_status(401)
             .with_body(r#"{"msg":"Token has expired"}"#)
             .create();
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1"})))
+            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token refreshed_access_token")
             .with_status(200)
             .with_body(r#"{"found":2,"not_found":["1.1.1.1"],"results":{"domain":["domain.com"],"ip":["4.4.4.4"]}}"#)
@@ -38,7 +38,7 @@ mod tests {
         let atom_values = vec!["domain.com", "4.4.4.4", "1.1.1.1"];
         let atom_values_string: Vec<String> = atom_values.iter().map(|x| x.to_string()).collect();
 
-        let result = dtl.extract_atom_type(&atom_values_string).unwrap();
+        let result = dtl.extract_atom_type(&atom_values_string, "file").unwrap();
 
         for mock in [token_mock, refresh_token_mock, extract_mock_on_expired_token, extract_mock] {
             mock.assert()  // Check url were called 1 times each
@@ -68,13 +68,13 @@ mod tests {
             .with_body(r#"{"access_token": "new_access_token","refresh_token": "not_tested"}"#)
             .create();
         let extract_mock_on_expired_token = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1"})))
+            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token 123")
             .with_status(401)
             .with_body(r#"{"msg":"Token has expired"}"#)
             .create();
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1"})))
+            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token new_access_token")
             .with_status(200)
             .with_body(r#"{"found":2,"not_found":["1.1.1.1"],"results":{"domain":["domain.com"],"ip":["4.4.4.4"]}}"#)
@@ -83,7 +83,7 @@ mod tests {
         let atom_values = vec!["domain.com", "4.4.4.4", "1.1.1.1"];
         let atom_values_string: Vec<String> = atom_values.iter().map(|x| x.to_string()).collect();
 
-        let result = dtl.extract_atom_type(&atom_values_string).unwrap();
+        let result = dtl.extract_atom_type(&atom_values_string, "file").unwrap();
 
         for mock in [
             token_mock,
@@ -116,13 +116,13 @@ mod tests {
             .create();
         let token_expired_msg = r#"{"msg":"Token has expired"}"#;
         let extract_mock_on_expired_token = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1"})))
+            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token 123")
             .with_status(401)
             .with_body(token_expired_msg)
             .create();
         let extract_mock_on_refreshed_token = mock("POST", "/mrti/threats/atom-values-extract/")
-            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1"})))
+            .match_body(Json(json!({"content":"domain.com 4.4.4.4 1.1.1.1", "treat_hashes_like": "file"})))
             .match_header("Authorization", "Token refreshed_access_token")
             .with_status(401)  // Keeps returning 401 on refreshed token
             .with_body(token_expired_msg)
@@ -132,7 +132,7 @@ mod tests {
         let atom_values = vec!["domain.com", "4.4.4.4", "1.1.1.1"];
         let atom_values_string: Vec<String> = atom_values.iter().map(|x| x.to_string()).collect();
 
-        let result = dtl.extract_atom_type(&atom_values_string);
+        let result = dtl.extract_atom_type(&atom_values_string, "file");
 
         for mock in [
             token_mock,
@@ -172,7 +172,8 @@ mod tests {
             .create();
         let extract_mock = mock("POST", "/mrti/threats/atom-values-extract/")
             .match_body(Json(json!({
-                "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e ef3363dfe2515b826584ab53c4bb7812 jeithe7eijeefohch3qu.probes.site"
+                "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e ef3363dfe2515b826584ab53c4bb7812 jeithe7eijeefohch3qu.probes.site",
+                "treat_hashes_like": "file",
             })))
             .with_status(200)
             .with_body(json!({
@@ -217,7 +218,7 @@ mod tests {
             .create();
         let mut dtl = common::create_datalake();
 
-        let lookup_result = dtl.bulk_lookup(atom_values_string).unwrap();
+        let lookup_result = dtl.bulk_lookup(atom_values_string, "file").unwrap();
 
         token_mock.assert();
         refresh_token_mock.assert();

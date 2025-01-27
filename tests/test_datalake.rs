@@ -101,15 +101,15 @@ mod tests {
     fn test_prod_setting() {
         let prod_setting = DatalakeSetting::prod();
 
-        assert_eq!(prod_setting.base_url(), "https://datalake.cert.orangecyberdefense.com/api/v2");
-        assert_eq!(prod_setting.routes().authentication, "https://datalake.cert.orangecyberdefense.com/api/v2/auth/token/");
+        assert_eq!(prod_setting.base_url(), "https://datalake.cert.orangecyberdefense.com/api/v3");
+        assert_eq!(prod_setting.routes().authentication, "https://datalake.cert.orangecyberdefense.com/api/v3/auth/token/");
     }
 
     #[test]
     fn test_change_base_url_setting() {
         let mut base_setting = DatalakeSetting::prod();
-        base_setting.set_base_url("base_url.com/api/v2".to_string());
-        assert_eq!(base_setting.routes().authentication, "base_url.com/api/v2/auth/token/");
+        base_setting.set_base_url("base_url.com/api/v3".to_string());
+        assert_eq!(base_setting.routes().authentication, "base_url.com/api/v3/auth/token/");
     }
 
     #[test]

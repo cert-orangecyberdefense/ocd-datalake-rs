@@ -122,7 +122,7 @@ impl Datalake {
     }
 
     /// Return the atom types based on the given atom_values
-    pub fn extract_atom_type(&mut self, atom_values: &[String]) -> Result<BTreeMap<String, String>, DatalakeError> {
+    pub fn extract_atom_type(&mut self, atom_values: &[String], treat_hashes_like: &str) -> Result<BTreeMap<String, String>, DatalakeError> {
         let url = self.settings.routes().atom_values_extract.clone();
         let mut request = self.client.post(&url);
         let mut joined_atom_values = String::from(&atom_values[0]);
@@ -132,6 +132,7 @@ impl Datalake {
         }
         let json_body = json!({
             "content": joined_atom_values,
+            "treat_hashes_like": String::from(treat_hashes_like),
         });
         request = request.json(&json_body);
         let resp = self.run_with_authorization_token(&request)?;
@@ -199,11 +200,12 @@ impl Datalake {
 
     /// Return a CSV of the bulk lookup for given threats
     ///
-    /// Threats have their atom type automatically defined (with hash meaning a File type)
-    pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> Result<String, DatalakeError> {
+    /// Hashes threat type are defined by treat_hashes_like, other threats have their atom type automatically defined,
+    /// see Datalake API documentation for possible values
+    pub fn bulk_lookup(&mut self, atom_values: Vec<String>, treat_hashes_like: &str) -> Result<String, DatalakeError> {
         let mut csv_merged = String::new();
         for chunk in atom_values.chunks(self.settings.bulk_lookup_chunk_size) {
-            let csv: String = self.bulk_lookup_chunk(chunk)?;
+            let csv: String = self.bulk_lookup_chunk(chunk, &treat_hashes_like)?;
             if csv_merged.is_empty() {
                 csv_merged = csv;
             } else {
@@ -231,9 +233,9 @@ impl Datalake {
     }
 
     /// Bulk lookup a chunk of atom_values
-    fn bulk_lookup_chunk(&mut self, atom_values: &[String]) -> Result<String, DatalakeError> {
+    fn bulk_lookup_chunk(&mut self, atom_values: &[String], treat_hashes_like: &str) -> Result<String, DatalakeError> {
         // Construct the body by identifying the atom types
-        let extracted = self.extract_atom_type(atom_values)?;
+        let extracted = self.extract_atom_type(atom_values, &treat_hashes_like)?;
         let mut body = Map::new();
         body.insert("hashkey_only".to_string(), Value::Bool(false));
         for (atom_value, atom_type) in extracted {
@@ -299,7 +301,7 @@ mod tests {
             DatalakeSetting::prod(),
         );
 
-        assert_eq!(dtl.settings.routes().authentication, "https://datalake.cert.orangecyberdefense.com/api/v2/auth/token/");
+        assert_eq!(dtl.settings.routes().authentication, "https://datalake.cert.orangecyberdefense.com/api/v3/auth/token/");
     }
 
     #[test]
@@ -312,7 +314,7 @@ mod tests {
             preprod_setting,
         );
 
-        assert_eq!(dtl.settings.routes().authentication, "https://ti.extranet.mrti-center.com/api/v2/auth/token/");
+        assert_eq!(dtl.settings.routes().authentication, "https://ti2.extranet.mrti-center.com/api/v3/auth/token/");
     }
 
     #[test]

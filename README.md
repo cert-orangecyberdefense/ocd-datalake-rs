@@ -32,7 +32,7 @@ Example: Lookup IOCs
         "jeithe7eijeefohch3qu.probes.site".to_string(),
         "8.8.8.8".to_string(),
     ];
-    let csv_result = dtl.bulk_lookup(atom_values);
+    let csv_result = dtl.bulk_lookup(atom_values, "file");
     println!("{csv_result:#?}");
 ````
 
