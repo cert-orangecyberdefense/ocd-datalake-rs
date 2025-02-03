@@ -1,6 +1,6 @@
 [package]
 name = "ocd_datalake_rs"
-version = "0.2.1"
+version = "0.3.0-pre.1"
 edition = "2021"
 authors = ["Orange Cyberdefense CERT"]
 description = "Library wrapper around Orange Cyberdefense's Datalake API"
