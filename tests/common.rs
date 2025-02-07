@@ -15,8 +15,9 @@ pub fn create_datalake() -> Datalake {
     env::remove_var("HTTP_PROXY");
     env::remove_var("HTTPS_PROXY");
     Datalake::new(
-        "username".to_string(),
-        "password".to_string(),
+        Some("username".to_string()),
+        Some("password".to_string()),
+        None,
         setting,
     )
 }
