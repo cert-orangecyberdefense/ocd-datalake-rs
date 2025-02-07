@@ -28,22 +28,25 @@ struct Tokens {  // Tokens are saved with the "Token " prefix
 #[derive(Clone, Debug)]
 pub struct Datalake {
     settings: DatalakeSetting,
-    username: String,
-    password: String,
+    username: Option<String>,
+    password: Option<String>,
+    long_term_token: Option<String>,
     client: Client,
     tokens: Option<Tokens>,
 }
 
 impl Datalake {
-    pub fn new(username: String, password: String, settings: DatalakeSetting) -> Self {
+    pub fn new(username: Option<String>, password: Option<String>, long_term_token: Option<String>, settings: DatalakeSetting) -> Self {
         Datalake {
             settings,
             username,
             password,
+            long_term_token,
             client: Client::new(),
             tokens: None,
         }
     }
+    /// get a refresh and a short-term token (isn't called if a long_term_token was provided)
     fn retrieve_api_tokens(&self) -> Result<Tokens, DatalakeError> {
         let url = &self.settings.routes().authentication;
         let auth_request = self.client.post(url);
@@ -75,6 +78,10 @@ impl Datalake {
 
     /// Cached version of retrieve_api_token that return a new token only if needed
     pub fn get_access_token(&mut self) -> Result<String, DatalakeError> {
+        if let Some(ref token) = self.long_term_token {
+            return Ok(format!("Token {}", token));
+        }
+    
         if self.tokens.is_none() {
             self.tokens = Some(self.retrieve_api_tokens()?);
         }
@@ -152,7 +159,7 @@ impl Datalake {
         }
     }
 
-    /// Run a request by injecting authorization token. Automatically retry once if the token is expired
+    /// Send a request with an authorization token. If the token is expired, retry once, unless it's a long-term token
     fn run_with_authorization_token(&mut self, request: &RequestBuilder) -> Result<Response, DatalakeError> {
         let Some(mut cloned_request) = request.try_clone() else {
             return Err(UnexpectedLibError(DetailedError::new("Can't clone given request".to_string())))
@@ -162,6 +169,15 @@ impl Datalake {
         let mut status_code = response.status();
         if status_code != 401 {
             return Ok(response);
+        }
+
+        if self.long_term_token.is_some() {
+            return Err(AuthenticationError(DetailedError {
+                summary: "401 response : invalid long-term token".to_string(),
+                api_url: Some(response.url().to_string()),
+                api_response: response.text().ok(),
+                api_status_code: Some(status_code),
+            }));
         }
 
         // Else retry
@@ -296,8 +312,9 @@ mod tests {
     #[test]
     fn test_create_datalake_with_prod_config() {
         let dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             DatalakeSetting::prod(),
         );
 
@@ -309,8 +326,9 @@ mod tests {
         let preprod_setting = DatalakeSetting::preprod();
 
         let dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             preprod_setting,
         );
 
@@ -321,8 +339,9 @@ mod tests {
     fn test_run_with_authorization_token_fail_on_unclonable_request() {
         let preprod_setting = DatalakeSetting::preprod();
         let mut dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             preprod_setting,
         );
         // Create a random request
@@ -338,8 +357,9 @@ mod tests {
     fn test_refresh_tokens_with_no_existing_tokens() {
         let preprod_setting = DatalakeSetting::preprod();
         let dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             preprod_setting,
         );
         let err =  dtl.refresh_tokens().err().unwrap();
