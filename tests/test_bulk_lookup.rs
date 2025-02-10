@@ -203,8 +203,9 @@ mod tests {
         setting.bulk_lookup_chunk_size = 3;
         setting.set_base_url(mockito::server_url());
         let mut custom_dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             setting,
         );
 
@@ -352,8 +353,9 @@ mod tests {
         setting.bulk_lookup_chunk_size = 3;
         setting.set_base_url(mockito::server_url());
         let mut custom_dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             setting,
         );
 

@@ -38,8 +38,9 @@ mod tests {
             fs::read_to_string(example_filename).unwrap()
         };
         let mut dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             DatalakeSetting::new(contents.as_str()),
         );
 
@@ -56,7 +57,7 @@ mod tests {
         let mut dtl = common::create_datalake();
 
         let err = dtl.get_access_token().err().unwrap();
-        assert_eq!(err.to_string(), "Parse Error error decoding response body: trailing characters at line 1 column 5");
+        assert_eq!(err.to_string(), "Parse Error error decoding response body");
         token_mock.assert();
     }
 
@@ -89,8 +90,9 @@ mod tests {
         let tmp = std::env::temp_dir();
         assert!(std::env::set_current_dir(&tmp).is_ok());
         Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             DatalakeSetting::prod(),
         );
 
@@ -120,8 +122,9 @@ mod tests {
             fs::read_to_string(example_filename).expect("Error reading the config file")
         };  // lock is released
         let _dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             DatalakeSetting::new(contents.as_str()),
         );
     }

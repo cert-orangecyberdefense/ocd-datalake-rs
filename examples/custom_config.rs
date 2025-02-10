@@ -5,8 +5,9 @@ fn main() {
     let example_filename = "examples/custom_config.ron";
     let contents = fs::read_to_string(example_filename).expect("Error reading the config file");
     let mut dtl = Datalake::new(
-        "username".to_string(),
-        "password".to_string(),
+        Some("username".to_string()),
+        Some("password".to_string()),
+        None,
         DatalakeSetting::new(contents.as_str()),
     );
     let result = dtl.get_access_token();
