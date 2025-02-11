@@ -36,14 +36,23 @@ pub struct Datalake {
 }
 
 impl Datalake {
-    pub fn new(username: Option<String>, password: Option<String>, long_term_token: Option<String>, settings: DatalakeSetting) -> Self {
-        Datalake {
-            settings,
-            username,
-            password,
-            long_term_token,
-            client: Client::new(),
-            tokens: None,
+    pub fn new(
+        username: Option<String>,
+        password: Option<String>,
+        long_term_token: Option<String>,
+        settings: DatalakeSetting
+    ) -> Result<Self, String> {
+        if (username.is_some() && password.is_some()) || long_term_token.is_some() {
+            Ok(Datalake {
+                settings,
+                username,
+                password,
+                long_term_token,
+                client: Client::new(),
+                tokens: None,
+            })
+        } else {
+            Err("Either username & password must be provided together or long_term_token must be present.".to_string())
         }
     }
     /// get a refresh and a short-term token (isn't called if a long_term_token was provided)
@@ -221,7 +230,7 @@ impl Datalake {
     pub fn bulk_lookup(&mut self, atom_values: Vec<String>, treat_hashes_like: &str) -> Result<String, DatalakeError> {
         let mut csv_merged = String::new();
         for chunk in atom_values.chunks(self.settings.bulk_lookup_chunk_size) {
-            let csv: String = self.bulk_lookup_chunk(chunk, &treat_hashes_like)?;
+            let csv: String = self.bulk_lookup_chunk(chunk, treat_hashes_like)?;
             if csv_merged.is_empty() {
                 csv_merged = csv;
             } else {
@@ -251,7 +260,7 @@ impl Datalake {
     /// Bulk lookup a chunk of atom_values
     fn bulk_lookup_chunk(&mut self, atom_values: &[String], treat_hashes_like: &str) -> Result<String, DatalakeError> {
         // Construct the body by identifying the atom types
-        let extracted = self.extract_atom_type(atom_values, &treat_hashes_like)?;
+        let extracted = self.extract_atom_type(atom_values, treat_hashes_like)?;
         let mut body = Map::new();
         body.insert("hashkey_only".to_string(), Value::Bool(false));
         for (atom_value, atom_type) in extracted {
@@ -316,7 +325,7 @@ mod tests {
             Some("password".to_string()),
             None,
             DatalakeSetting::prod(),
-        );
+        ).unwrap();
 
         assert_eq!(dtl.settings.routes().authentication, "https://datalake.cert.orangecyberdefense.com/api/v3/auth/token/");
     }
@@ -330,7 +339,7 @@ mod tests {
             Some("password".to_string()),
             None,
             preprod_setting,
-        );
+        ).unwrap();
 
         assert_eq!(dtl.settings.routes().authentication, "https://ti2.extranet.mrti-center.com/api/v3/auth/token/");
     }
@@ -343,7 +352,7 @@ mod tests {
             Some("password".to_string()),
             None,
             preprod_setting,
-        );
+        ).unwrap();
         // Create a random request
         let mut request = dtl.client.post(&dtl.settings.routes().authentication);
         // Set a streaming body that can't be cloned
@@ -361,7 +370,7 @@ mod tests {
             Some("password".to_string()),
             None,
             preprod_setting,
-        );
+        ).unwrap();
         let err =  dtl.refresh_tokens().err().unwrap();
         let expected_error_message = "Refresh tokens called despite no token set".to_string();
         assert_eq!(err, UnexpectedLibError(DetailedError::new(expected_error_message)));

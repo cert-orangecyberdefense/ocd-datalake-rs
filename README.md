@@ -40,7 +40,7 @@ Example: Lookup IOCs
         password,
         None,
         DatalakeSetting::prod(),
-    );
+    ).unwrap();
 
     let atom_values: Vec<String> = vec![
         "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e".to_string(),
