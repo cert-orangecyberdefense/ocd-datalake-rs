@@ -42,7 +42,7 @@ mod tests {
             Some("password".to_string()),
             None,
             DatalakeSetting::new(contents.as_str()),
-        );
+        ).unwrap();
 
         let err = dtl.get_access_token().err().unwrap();
         assert_eq!(err.to_string(), "HTTP Error Could not fetch API for url https://custom_host/auth/token/");
@@ -94,7 +94,7 @@ mod tests {
             Some("password".to_string()),
             None,
             DatalakeSetting::prod(),
-        );
+        ).unwrap();
 
         std::env::set_current_dir(test_work_dir).unwrap();  // Reset work dir as others tests need it
     }
@@ -122,10 +122,10 @@ mod tests {
             fs::read_to_string(example_filename).expect("Error reading the config file")
         };  // lock is released
         let _dtl = Datalake::new(
-            Some("username".to_string()),
-            Some("password".to_string()),
             None,
+            None,
+            Some("long_term_token".to_string()),
             DatalakeSetting::new(contents.as_str()),
-        );
+        ).unwrap();
     }
 }

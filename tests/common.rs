@@ -19,5 +19,5 @@ pub fn create_datalake() -> Datalake {
         Some("password".to_string()),
         None,
         setting,
-    )
+    ).unwrap()
 }

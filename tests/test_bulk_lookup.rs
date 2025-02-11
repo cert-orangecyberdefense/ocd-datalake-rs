@@ -207,7 +207,7 @@ mod tests {
             Some("password".to_string()),
             None,
             setting,
-        );
+        ).unwrap();
 
         let atom_values = vec![
             "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e",
@@ -355,11 +355,11 @@ mod tests {
         std::env::remove_var("HTTP_PROXY");
         std::env::remove_var("HTTPS_PROXY");
         let mut custom_dtl = Datalake::new(
-            Some("username".to_string()),
-            Some("password".to_string()),
             None,
+            None,
+            Some("long_term_token".to_string()),
             setting,
-        );
+        ).unwrap();
 
         let atom_values = vec![
             "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e",
@@ -369,10 +369,6 @@ mod tests {
         ];
         let atom_values_string: Vec<String> = atom_values.iter().map(|x| x.to_string()).collect();
 
-        let token_mock = mock("POST", "/auth/token/")
-            .with_status(200)
-            .with_body(r#"{"access_token": "123","refresh_token": "456"}"#)
-            .create();
         let extract_mock_1 = mock("POST", "/mrti/threats/atom-values-extract/")
             .match_body(Json(json!({
                 "content":"620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e jeithe7eijeefohch3qu.probes.site ef3363dfe2515b826584ab53c4bb7812",
@@ -452,7 +448,6 @@ mod tests {
             _ => { panic!() }
         }
 
-        token_mock.assert();
         extract_mock_1.assert();
         lookup_mock_1.assert();
         extract_mock_2.assert();

@@ -10,7 +10,7 @@ fn main() {
         password,
         long_term_token,
         DatalakeSetting::preprod(),
-    );
+    ).unwrap();
 
     let atom_values: Vec<String> = vec![
         "enus.patch.battle.net",  // domain
