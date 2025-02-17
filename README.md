@@ -11,10 +11,25 @@
 Check [open issues](https://github.com/cert-orangecyberdefense/ocd-datalake-rs/issues) to see what is planned
 ## Installation
 put in Cargo.toml:
-```
+```toml
 [dependencies]
-ocd_datalake_rs = "0.2.0"
+ocd_datalake_rs = "0.3.0-pre.2"
 ```
+
+## Using custom CA Certificates
+By default, this library uses rustls-tls-native-roots, which enables reqwest to trust the system's native certificate store.
+However, if you need to specify a custom CA file, you can set the SSL_CERT_FILE or SSL_CERT_DIR environment variables 
+before running your application:
+```bash
+export SSL_CERT_FILE=/path/to/custom-ca.pem
+export SSL_CERT_DIR=/path/to/certs/
+```
+On Windows : 
+```powershell
+$env:SSL_CERT_FILE="C:\path\to\custom-ca.pem"
+$env:SSL_CERT_DIR="C:\path\to\certs\"
+```
+This allows the reqwest client to properly validate HTTPS connections using your organization's trusted certificates.
 
 ## Usage
 
@@ -23,8 +38,9 @@ Example: Lookup IOCs
     let mut dtl = Datalake::new(
         username,
         password,
+        None,
         DatalakeSetting::prod(),
-    );
+    ).unwrap();
 
     let atom_values: Vec<String> = vec![
         "620c28ece75af2ea227f195fc45afe109ff9f5c876f2e4da9e0d4f4aad68ee8e".to_string(),
@@ -35,6 +51,7 @@ Example: Lookup IOCs
     let csv_result = dtl.bulk_lookup(atom_values, "file");
     println!("{csv_result:#?}");
 ````
+> Note: Defining the long_term_token parameter overwrites the username and password parameters
 
 check [all the examples](https://github.com/cert-orangecyberdefense/ocd-datalake-rs/tree/master/examples) to see the full list of functionality in action.
 
