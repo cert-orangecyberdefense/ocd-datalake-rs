@@ -38,6 +38,14 @@ Example: Lookup IOCs
 
 check [all the examples](https://github.com/cert-orangecyberdefense/ocd-datalake-rs/tree/master/examples) to see the full list of functionality in action.
 
+## Use a Proxy
+
+To use a http or https proxy, simply define either HTTP_PROXY or HTTPS_PROXY env variables to be your proxy url. If you ever stop using the proxy, don't forget to unset both env variables.
+```Bash
+export HTTP_PROXY='http://example-proxy.test'
+unset HTTP_PROXY
+```
+
 ## Contribute
 
 All contributions and/or feedbacks are welcome to improve the code and the package.  
