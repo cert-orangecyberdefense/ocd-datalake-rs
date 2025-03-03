@@ -4,10 +4,11 @@ use ocd_datalake_rs::{Datalake, DatalakeSetting};
 fn main() {
     let username = env::var("OCD_DTL_RS_USERNAME").ok();
     let password = env::var("OCD_DTL_RS_PASSWORD").ok();
+    let longterm_token = env::var("OCD_DTL_RS_LONGTERM_TOKEN").ok();
     let mut dtl = Datalake::new(
         username,
         password,
-        None,
+        longterm_token,
         DatalakeSetting::preprod()
     ).unwrap();
     let atom_values: Vec<String> = vec!["domain.com", "4.4.4.4", "1.1.1.1", "7ba226e0538c234638beae091ba53f0282fa9fb6"]

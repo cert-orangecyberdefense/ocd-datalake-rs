@@ -357,7 +357,7 @@ mod tests {
         let mut custom_dtl = Datalake::new(
             None,
             None,
-            Some("long_term_token".to_string()),
+            Some("longterm_token".to_string()),
             setting,
         ).unwrap();
 

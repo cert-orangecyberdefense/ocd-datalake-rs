@@ -124,7 +124,7 @@ mod tests {
         let _dtl = Datalake::new(
             None,
             None,
-            Some("long_term_token".to_string()),
+            Some("longterm_token".to_string()),
             DatalakeSetting::new(contents.as_str()),
         ).unwrap();
     }
