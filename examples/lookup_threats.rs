@@ -4,11 +4,11 @@ use ocd_datalake_rs::{Datalake, DatalakeSetting};
 fn main() {
     let username = env::var("OCD_DTL_RS_USERNAME").ok();
     let password = env::var("OCD_DTL_RS_PASSWORD").ok();
-    let long_term_token = env::var("OCD_DTL_RS_LONG_TERM_TOKEN").ok();
+    let longterm_token = env::var("OCD_DTL_RS_LONGTERM_TOKEN").ok();
     let mut dtl = Datalake::new(
         username,
         password,
-        long_term_token,
+        longterm_token,
         DatalakeSetting::preprod(),
     ).unwrap();
 

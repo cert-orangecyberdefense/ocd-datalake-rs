@@ -6,13 +6,15 @@ use std::io::Write;
 use ocd_datalake_rs::{ATOM_VALUE_QUERY_FIELD, Datalake, DatalakeSetting};
 
 fn main() {
-    let long_term_token = env::var("OCD_DTL_RS_LONG_TERM_TOKEN").ok();
+    let username = env::var("OCD_DTL_RS_USERNAME").ok();
+    let password = env::var("OCD_DTL_RS_PASSWORD").ok();
+    let longterm_token = env::var("OCD_DTL_RS_LONGTERM_TOKEN").ok();
     let mut preprod_setting = DatalakeSetting::preprod();
     preprod_setting.bulk_search_timeout_sec = 10 * 60;  // Wait at max 10 minutes before timeout
     let mut dtl = Datalake::new(
-        None,
-        None,
-        long_term_token,
+        username,
+        password,
+        longterm_token,
         preprod_setting,
     ).unwrap();
 

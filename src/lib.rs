@@ -31,7 +31,7 @@ pub struct Datalake {
     settings: DatalakeSetting,
     username: Option<String>,
     password: Option<String>,
-    long_term_token: Option<String>,
+    longterm_token: Option<String>,
     client: Client,
     tokens: Option<Tokens>,
 }
@@ -65,23 +65,23 @@ impl Datalake {
     pub fn new(
         username: Option<String>,
         password: Option<String>,
-        long_term_token: Option<String>,
+        longterm_token: Option<String>,
         settings: DatalakeSetting
     ) -> Result<Self, String> {
-        if (username.is_some() && password.is_some()) || long_term_token.is_some() {
+        if (username.is_some() && password.is_some()) || longterm_token.is_some() {
             Ok(Datalake {
                 settings,
                 username,
                 password,
-                long_term_token,
+                longterm_token,
                 client: Client::new(),
                 tokens: None,
             })
         } else {
-            Err("Either username & password must be provided together or long_term_token must be present.".to_string())
+            Err("Either username & password must be provided together or longterm_token must be present.".to_string())
         }
     }
-    /// get a refresh and a short-term token (isn't called if a long_term_token was provided)
+    /// get a refresh and a short-term token (isn't called if a longterm_token was provided)
     fn retrieve_api_tokens(&self) -> Result<Tokens, DatalakeError> {
         let url = &self.settings.routes().authentication;
         let auth_request = self.client.post(url);
@@ -113,7 +113,7 @@ impl Datalake {
 
     /// Cached version of retrieve_api_token that return a new token only if needed
     pub fn get_access_token(&mut self) -> Result<String, DatalakeError> {
-        if let Some(ref token) = self.long_term_token {
+        if let Some(ref token) = self.longterm_token {
             return Ok(format!("Token {}", token));
         }
     
@@ -206,7 +206,7 @@ impl Datalake {
             return Ok(response);
         }
 
-        if self.long_term_token.is_some() {
+        if self.longterm_token.is_some() {
             return Err(AuthenticationError(DetailedError {
                 summary: "401 response : invalid long-term token".to_string(),
                 api_url: Some(response.url().to_string()),
