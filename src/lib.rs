@@ -7,14 +7,15 @@ pub mod bulk_search;
 use std::collections::{BTreeMap, HashMap};
 use std::thread;
 use std::time::{Duration, Instant};
-use log::info;
+use log::{info, debug};
+use std::env;
+use reqwest::Proxy;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use reqwest::header::AUTHORIZATION;
 use serde_json::{json, Map, Value};
 use crate::bulk_search::{create_bulk_search_task, download_bulk_search, get_bulk_search_task, State};
 use crate::error::{DatalakeError, DetailedError};
-use crate::DatalakeError::{ApiError, AuthenticationError, TimeoutError};
-use crate::error::DatalakeError::UnexpectedLibError;
+use crate::DatalakeError::{ApiError, AuthenticationError, TimeoutError, ProxyError, UnexpectedLibError};
 pub use crate::setting::{DatalakeSetting, RoutesSetting};
 
 pub const ATOM_VALUE_QUERY_FIELD: &str = "atom_value";
@@ -34,16 +35,48 @@ pub struct Datalake {
     tokens: Option<Tokens>,
 }
 
+fn build_client() -> Result<Client, DatalakeError> {
+    let https_proxy = env::var("HTTPS_PROXY").ok();
+    let http_proxy = env::var("HTTP_PROXY").ok();
+    let client_builder = Client::builder();
+    
+    // Try HTTPS_PROXY first, then HTTP_PROXY, otherwise use default client
+    if let Some(url) = https_proxy.or(http_proxy) {
+        debug!("{}", format!("Using Proxy : {url}"));
+        if url.starts_with("http") {
+            match Proxy::all(&url) {
+                Ok(proxy) => client_builder
+                    .proxy(proxy)
+                    .build()
+                    .map_err(|e| ProxyError(DetailedError::new(format!("Failed to build client : {e}")))),
+                Err(e) => Err(ProxyError(DetailedError::new(format!("Invalid proxy URL : {e}"))))
+            }
+        } else {
+            Err(ProxyError(DetailedError::new(format!("Invalid proxy URL : {url}"))))
+        }
+    } else {
+        debug!("No proxies configured, using default client. To specify a proxy, please set the HTTP_PROXY(S) env variable.");
+        Ok(Client::new())
+    }
+}
+
 impl Datalake {
     pub fn new(username: String, password: String, settings: DatalakeSetting) -> Self {
+        let client = match build_client() {
+            Ok(client) => client,
+            Err(err) => {
+                panic!("Failed to build client: {err}")
+            }
+        };
         Datalake {
             settings,
             username,
             password,
-            client: Client::new(),
+            client,
             tokens: None,
         }
     }
+
     fn retrieve_api_tokens(&self) -> Result<Tokens, DatalakeError> {
         let url = &self.settings.routes().authentication;
         let auth_request = self.client.post(url);
@@ -290,6 +323,32 @@ mod tests {
     use crate::{Datalake, DatalakeSetting};
     use crate::error::DatalakeError::UnexpectedLibError;
     use crate::error::DetailedError;
+    use crate::build_client;
+    use std::env;
+
+    #[test]
+    fn test_proxy_client_creation() {
+        env::remove_var("HTTP_PROXY");
+        env::remove_var("HTTPS_PROXY");
+        let result = build_client();
+        assert!(result.is_ok(), "Should build client with no proxy");
+        
+        env::set_var("HTTPS_PROXY", "https://example-proxy-1.com:8080");
+        let result = build_client();
+        assert!(result.is_ok(), "Should build client with valid HTTP proxy");
+        
+        env::remove_var("HTTPS_PROXY");
+        env::set_var("HTTP_PROXY", "http://example-proxy-2.com:8080");
+        let result = build_client();
+        assert!(result.is_ok(), "Should build client with valid HTTP proxy");
+        
+        env::set_var("HTTP_PROXY", "invalid-url");
+        let result = build_client();
+        assert!(result.is_err(), "Should fail with invalid proxy URL");
+        
+        env::remove_var("HTTP_PROXY");
+        env::remove_var("HTTPS_PROXY");
+    }
 
     #[test]
     fn test_create_datalake_with_prod_config() {
