@@ -29,8 +29,9 @@ struct Tokens {  // Tokens are saved with the "Token " prefix
 #[derive(Clone, Debug)]
 pub struct Datalake {
     settings: DatalakeSetting,
-    username: String,
-    password: String,
+    username: Option<String>,
+    password: Option<String>,
+    longterm_token: Option<String>,
     client: Client,
     tokens: Option<Tokens>,
 }
@@ -61,22 +62,26 @@ fn build_client() -> Result<Client, DatalakeError> {
 }
 
 impl Datalake {
-    pub fn new(username: String, password: String, settings: DatalakeSetting) -> Self {
-        let client = match build_client() {
-            Ok(client) => client,
-            Err(err) => {
-                panic!("Failed to build client: {err}")
-            }
-        };
-        Datalake {
-            settings,
-            username,
-            password,
-            client,
-            tokens: None,
+    pub fn new(
+        username: Option<String>,
+        password: Option<String>,
+        longterm_token: Option<String>,
+        settings: DatalakeSetting
+    ) -> Result<Self, String> {
+        if (username.is_some() && password.is_some()) || longterm_token.is_some() {
+            Ok(Datalake {
+                settings,
+                username,
+                password,
+                longterm_token,
+                client: Client::new(),
+                tokens: None,
+            })
+        } else {
+            Err("Either username & password must be provided together or longterm_token must be present.".to_string())
         }
     }
-
+    /// get a refresh and a short-term token (isn't called if a longterm_token was provided)
     fn retrieve_api_tokens(&self) -> Result<Tokens, DatalakeError> {
         let url = &self.settings.routes().authentication;
         let auth_request = self.client.post(url);
@@ -108,6 +113,10 @@ impl Datalake {
 
     /// Cached version of retrieve_api_token that return a new token only if needed
     pub fn get_access_token(&mut self) -> Result<String, DatalakeError> {
+        if let Some(ref token) = self.longterm_token {
+            return Ok(format!("Token {}", token));
+        }
+    
         if self.tokens.is_none() {
             self.tokens = Some(self.retrieve_api_tokens()?);
         }
@@ -155,7 +164,7 @@ impl Datalake {
     }
 
     /// Return the atom types based on the given atom_values
-    pub fn extract_atom_type(&mut self, atom_values: &[String]) -> Result<BTreeMap<String, String>, DatalakeError> {
+    pub fn extract_atom_type(&mut self, atom_values: &[String], treat_hashes_like: &str) -> Result<BTreeMap<String, String>, DatalakeError> {
         let url = self.settings.routes().atom_values_extract.clone();
         let mut request = self.client.post(&url);
         let mut joined_atom_values = String::from(&atom_values[0]);
@@ -165,6 +174,7 @@ impl Datalake {
         }
         let json_body = json!({
             "content": joined_atom_values,
+            "treat_hashes_like": String::from(treat_hashes_like),
         });
         request = request.json(&json_body);
         let resp = self.run_with_authorization_token(&request)?;
@@ -184,7 +194,7 @@ impl Datalake {
         }
     }
 
-    /// Run a request by injecting authorization token. Automatically retry once if the token is expired
+    /// Send a request with an authorization token. If the token is expired, retry once, unless it's a long-term token
     fn run_with_authorization_token(&mut self, request: &RequestBuilder) -> Result<Response, DatalakeError> {
         let Some(mut cloned_request) = request.try_clone() else {
             return Err(UnexpectedLibError(DetailedError::new("Can't clone given request".to_string())))
@@ -194,6 +204,15 @@ impl Datalake {
         let mut status_code = response.status();
         if status_code != 401 {
             return Ok(response);
+        }
+
+        if self.longterm_token.is_some() {
+            return Err(AuthenticationError(DetailedError {
+                summary: "401 response : invalid long-term token".to_string(),
+                api_url: Some(response.url().to_string()),
+                api_response: response.text().ok(),
+                api_status_code: Some(status_code),
+            }));
         }
 
         // Else retry
@@ -232,11 +251,12 @@ impl Datalake {
 
     /// Return a CSV of the bulk lookup for given threats
     ///
-    /// Threats have their atom type automatically defined (with hash meaning a File type)
-    pub fn bulk_lookup(&mut self, atom_values: Vec<String>) -> Result<String, DatalakeError> {
+    /// Hashes threat type are defined by treat_hashes_like, other threats have their atom type automatically defined,
+    /// see Datalake API documentation for possible values
+    pub fn bulk_lookup(&mut self, atom_values: Vec<String>, treat_hashes_like: &str) -> Result<String, DatalakeError> {
         let mut csv_merged = String::new();
         for chunk in atom_values.chunks(self.settings.bulk_lookup_chunk_size) {
-            let csv: String = self.bulk_lookup_chunk(chunk)?;
+            let csv: String = self.bulk_lookup_chunk(chunk, treat_hashes_like)?;
             if csv_merged.is_empty() {
                 csv_merged = csv;
             } else {
@@ -264,9 +284,9 @@ impl Datalake {
     }
 
     /// Bulk lookup a chunk of atom_values
-    fn bulk_lookup_chunk(&mut self, atom_values: &[String]) -> Result<String, DatalakeError> {
+    fn bulk_lookup_chunk(&mut self, atom_values: &[String], treat_hashes_like: &str) -> Result<String, DatalakeError> {
         // Construct the body by identifying the atom types
-        let extracted = self.extract_atom_type(atom_values)?;
+        let extracted = self.extract_atom_type(atom_values, treat_hashes_like)?;
         let mut body = Map::new();
         body.insert("hashkey_only".to_string(), Value::Bool(false));
         for (atom_value, atom_type) in extracted {
@@ -353,12 +373,13 @@ mod tests {
     #[test]
     fn test_create_datalake_with_prod_config() {
         let dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             DatalakeSetting::prod(),
-        );
+        ).unwrap();
 
-        assert_eq!(dtl.settings.routes().authentication, "https://datalake.cert.orangecyberdefense.com/api/v2/auth/token/");
+        assert_eq!(dtl.settings.routes().authentication, "https://datalake.cert.orangecyberdefense.com/api/v3/auth/token/");
     }
 
     #[test]
@@ -366,22 +387,24 @@ mod tests {
         let preprod_setting = DatalakeSetting::preprod();
 
         let dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             preprod_setting,
-        );
+        ).unwrap();
 
-        assert_eq!(dtl.settings.routes().authentication, "https://ti.extranet.mrti-center.com/api/v2/auth/token/");
+        assert_eq!(dtl.settings.routes().authentication, "https://ti2.extranet.mrti-center.com/api/v3/auth/token/");
     }
 
     #[test]
     fn test_run_with_authorization_token_fail_on_unclonable_request() {
         let preprod_setting = DatalakeSetting::preprod();
         let mut dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             preprod_setting,
-        );
+        ).unwrap();
         // Create a random request
         let mut request = dtl.client.post(&dtl.settings.routes().authentication);
         // Set a streaming body that can't be cloned
@@ -395,10 +418,11 @@ mod tests {
     fn test_refresh_tokens_with_no_existing_tokens() {
         let preprod_setting = DatalakeSetting::preprod();
         let dtl = Datalake::new(
-            "username".to_string(),
-            "password".to_string(),
+            Some("username".to_string()),
+            Some("password".to_string()),
+            None,
             preprod_setting,
-        );
+        ).unwrap();
         let err =  dtl.refresh_tokens().err().unwrap();
         let expected_error_message = "Refresh tokens called despite no token set".to_string();
         assert_eq!(err, UnexpectedLibError(DetailedError::new(expected_error_message)));

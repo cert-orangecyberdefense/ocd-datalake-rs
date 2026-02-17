@@ -6,17 +6,20 @@ use std::io::Write;
 use ocd_datalake_rs::{ATOM_VALUE_QUERY_FIELD, Datalake, DatalakeSetting};
 
 fn main() {
-    let username = env::var("OCD_DTL_RS_USERNAME").unwrap();
-    let password = env::var("OCD_DTL_RS_PASSWORD").unwrap();
+    let username = env::var("OCD_DTL_RS_USERNAME").ok();
+    let password = env::var("OCD_DTL_RS_PASSWORD").ok();
+    let longterm_token = env::var("OCD_DTL_RS_LONGTERM_TOKEN").ok();
     let mut preprod_setting = DatalakeSetting::preprod();
     preprod_setting.bulk_search_timeout_sec = 10 * 60;  // Wait at max 10 minutes before timeout
     let mut dtl = Datalake::new(
         username,
         password,
+        longterm_token,
         preprod_setting,
-    );
+    ).unwrap();
 
-    let query_hash = "fbecd3d440a7d439a2a1fd996c703a8d".to_string();  // IPs updated the last day
+    let query_hash = "fbecd3d440a7d439a2a1fd996c703a8d".to_string();  // IPs updated the last day 
+    // other examples : 685596bc5cbb5e8d7dc553157f26d3e1 (13 results), 3e20613adf80978e590bfdfafdb31aa1 (9971 results)
 
     let (sender, receiver) = mpsc::channel();
     let start_time = Instant::now();
